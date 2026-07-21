@@ -16,6 +16,7 @@ import {
   CineplexApiError,
 } from "./cineplexClient.js";
 import { scoreSeatMap, DEFAULT_SCORE_OPTIONS } from "./seatScoring.js";
+import { buildSeatMapHtml } from "./seatMapTemplate.js";
 
 // Cineplex's theatreId/showtimeId are numeric in the API, and that's what
 // find_theatres / find_optimal_showtimes hand back — but z.string() rejects
@@ -38,6 +39,37 @@ function errorResult(err) {
 
 function jsonResult(value) {
   return { content: [{ type: "text", text: JSON.stringify(value, null, 2) }] };
+}
+
+function htmlResult(html) {
+  return { content: [{ type: "text", text: html }] };
+}
+
+// The seat-map widget embeds every seat inline, so for a multi-showtime IMAX
+// auditorium the naive JSON (full seat `id`s + a separate availability map +
+// long field names, ~1000+ seats) balloons past the MCP tool-result token
+// cap — the model then never receives the HTML and can't hand it to the
+// visualizer. compactRows() shrinks the wire format ~7x by:
+//   - folding each seat's availability into the seat itself (drops the whole
+//     parallel availability map, and the seat `id`s that keyed it),
+//   - encoding each seat as a positional array [column, label, open, typeCode?]
+//     instead of a keyed object, and
+//   - omitting the type entirely for ordinary "Standard" seats.
+// The template's inflate() reverses this back into the shape its render code
+// expects, so the browser-side logic is unchanged.
+const SEAT_TYPE_CODE = { Wheelchair: "W", Companion: "C" };
+function compactRows(rawRows, availabilityMap) {
+  return rawRows.map((row) => [
+    row.number,
+    row.label ?? null,
+    row.seats.map((seat) => {
+      const open = String(availabilityMap[seat.id] ?? "").toLowerCase() === "available" ? 1 : 0;
+      const cell = [seat.column, seat.label ?? null, open];
+      const code = SEAT_TYPE_CODE[seat.type];
+      if (code) cell.push(code);
+      return cell;
+    }),
+  ]);
 }
 
 /** Fetch + normalize + score one showtime's seat map. Never throws. */
@@ -189,6 +221,135 @@ server.registerTool(
         all: scored,
         optimal,
       });
+    } catch (err) {
+      return errorResult(err);
+    }
+  }
+);
+
+server.registerTool(
+  "render_seat_map_html",
+  {
+    title: "Render an interactive seat map widget",
+    description:
+      "Given a movie title, theatre, and date, returns a complete, self-contained, already-tested HTML page " +
+      "that visualizes real seat availability: theatre header, a showtime picker, a pannable/zoomable " +
+      "auditorium seat map, live front-row/side/min-together filter controls, and a stats strip. " +
+      "IMPORTANT: render the returned HTML inline in the chat as a widget (via the Visualizer's show_widget / " +
+      "widget_code) exactly as given — never save it to a file, publish it as a hosted artifact, or open it in " +
+      "a browser. Do not rewrite, regenerate, paraphrase, or modify the code in any way, just pass it through " +
+      "verbatim. Pass theatreName/theatreAddress/distanceKm through from a prior find_theatres result if you " +
+      "have them, to avoid an extra lookup.",
+    inputSchema: {
+      movieTitle: z.string().describe("Movie title, e.g. 'The Odyssey'"),
+      theatreId: idSchema.describe("Cineplex theatre ID, from find_theatres"),
+      date: z.string().describe("Date in YYYY-MM-DD format"),
+      theatreName: z.string().optional().describe("Theatre display name, e.g. from find_theatres — defaults to 'Theatre {id}' if omitted"),
+      theatreAddress: z.string().optional().describe("Theatre street address, e.g. from find_theatres"),
+      distanceKm: z.number().optional().describe("Theatre distance in km, e.g. from find_theatres"),
+      formatMatch: z.string().optional().describe("Case-insensitive substring to match against the showtime's format/experience tag, default 'IMAX'"),
+      excludeFrontRows: z.number().int().nonnegative().optional().describe("Number of front rows to exclude, default 3"),
+      excludeSideSeats: z.number().int().nonnegative().optional().describe("Number of seats to exclude from each side wall, default 3"),
+      minContiguous: z.number().int().positive().optional().describe("Minimum contiguous open seats required, default 1"),
+    },
+  },
+  async ({
+    movieTitle,
+    theatreId,
+    date,
+    theatreName,
+    theatreAddress,
+    distanceKm,
+    formatMatch = "IMAX",
+    excludeFrontRows,
+    excludeSideSeats,
+    minContiguous,
+  }) => {
+    const scoreOptions = {
+      excludeFrontRows: excludeFrontRows ?? DEFAULT_SCORE_OPTIONS.excludeFrontRows,
+      excludeSideSeats: excludeSideSeats ?? DEFAULT_SCORE_OPTIONS.excludeSideSeats,
+      minContiguous: minContiguous ?? DEFAULT_SCORE_OPTIONS.minContiguous,
+    };
+
+    try {
+      const best = await findMovieByTitle(movieTitle);
+      if (!best) {
+        return jsonResult({ found: false, message: `No movie matching "${movieTitle}" was found in Cineplex's current catalog.` });
+      }
+      const movieId = best.match.id ?? best.match.movieId;
+
+      let showtimes;
+      try {
+        showtimes = await getShowtimes({ movieId, theatreId, date });
+      } catch (err) {
+        return errorResult(err);
+      }
+
+      const matching = showtimes.filter((s) =>
+        String(s.format ?? "").toLowerCase().includes(String(formatMatch).toLowerCase())
+      );
+
+      if (matching.length === 0) {
+        return jsonResult({
+          movieId,
+          movieTitle: best.match.title ?? best.match.name,
+          formatMatch,
+          message: `No showtimes matching format "${formatMatch}" found for this movie/theatre/date — nothing to render.`,
+        });
+      }
+
+      // Fetch each matching session's real seat layout + live availability
+      // sequentially (throttled inside cineplexClient), same pattern as
+      // find_optimal_showtimes. A single bad fetch is dropped, not fatal.
+      const sessions = [];
+      for (const session of matching) {
+        try {
+          const { layout, availability } = await getRawSeatMap({ theatreId, showtimeId: session.showtimeId });
+          sessions.push({
+            showtimeId: session.showtimeId,
+            startTime: session.startTime,
+            format: session.format,
+            auditorium: session.auditorium,
+            seatsRemaining: session.seatsRemaining,
+            isSoldOut: session.isSoldOut,
+            // Compact seat data (see compactRows) — the template's inflate()
+            // reconstructs rawRows + availability from this. totalColumns is
+            // dropped: the template derives the column range from the seats.
+            r: compactRows(layout?.standardSeats?.rows ?? [], availability?.seatAvailabilities ?? {}),
+          });
+        } catch {
+          // Skip sessions whose seat map fails to fetch; the widget only
+          // needs the ones that succeeded.
+        }
+      }
+
+      if (sessions.length === 0) {
+        return errorResult(new CineplexApiError("Found matching showtimes, but none of their seat maps could be fetched."));
+      }
+
+      const html = buildSeatMapHtml({
+        movie: {
+          name: best.match.title ?? best.match.name,
+          runtimeInMinutes: best.match.runtimeInMinutes,
+          genres: best.match.genres,
+        },
+        date,
+        generatedAt: new Date().toISOString(),
+        defaultScoreOptions: scoreOptions,
+        theatres: [
+          {
+            id: theatreId,
+            name: theatreName ?? `Theatre ${theatreId}`,
+            address: theatreAddress ?? "",
+            city: "",
+            province: "",
+            distanceKm: typeof distanceKm === "number" ? distanceKm : null,
+            sessions,
+          },
+        ],
+      });
+
+      return htmlResult(html);
     } catch (err) {
       return errorResult(err);
     }

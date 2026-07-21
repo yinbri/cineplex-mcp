@@ -82,6 +82,16 @@ claude mcp add cineplex -- node /absolute/path/to/cineplex-mcp/src/index.js
   excludeSideSeats?, minContiguous? }` → seat score for a single already-known
   showtime. Cineplex's seat endpoints are keyed by the `(theatreId,
   showtimeId)` pair, not showtimeId alone.
+- **`render_seat_map_html`** — `{ movieTitle, theatreId, date, theatreName?,
+  theatreAddress?, distanceKm?, formatMatch?, excludeFrontRows?,
+  excludeSideSeats?, minContiguous? }` → a complete, self-contained HTML page
+  visualizing real seat availability: showtime chips, a pannable/zoomable
+  auditorium seat map, live filter controls, and a stats strip. Meant to be
+  rendered inline in the chat as a widget (via the Visualizer's `show_widget`),
+  not saved to a file, published as a hosted artifact, or read as data — see
+  `src/seatMapTemplate.html`/`.js`. The tool only injects real data into an
+  already-built, already-tested template; it never generates new HTML/JS per
+  call, so there's no risk of a fresh generation shipping a UI bug.
 
 `theatreId`/`showtimeId` accept either a string or a number — Cineplex's IDs
 are numeric, and `find_theatres`/`find_optimal_showtimes` hand them back as
@@ -142,12 +152,17 @@ in the future" section.
 
 ```
 src/
-  index.js           # MCP server entrypoint; registers tools, thin glue only
-  cineplexClient.js   # All HTTP calls to Cineplex's API; caching + throttling
-  seatScoring.js       # Pure functions: normalized seat map -> score. No
-                        # network calls, no Cineplex-specific knowledge.
-CAPTURE.md            # Record of how the live endpoints were found, and how
-                        # to re-capture them if something changes
+  index.js              # MCP server entrypoint; registers tools, thin glue only
+  cineplexClient.js     # All HTTP calls to Cineplex's API; caching + throttling
+  seatScoring.js        # Pure functions: normalized seat map -> score. No
+                         # network calls, no Cineplex-specific knowledge.
+  seatMapTemplate.html  # Self-contained widget UI (CSS + JS): tabs,
+                         # showtime chips, pan/zoom seat map, live filters.
+                         # Has a JSON-data placeholder, no server logic.
+  seatMapTemplate.js    # Loads the .html above and injects real data into
+                         # its data placeholder. Never regenerates the HTML.
+CAPTURE.md              # Record of how the live endpoints were found, and how
+                         # to re-capture them if something changes
 ```
 
 `seatScoring.js` never sees Cineplex's raw JSON shape — only the normalized
