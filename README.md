@@ -108,6 +108,30 @@ just works.
   this many available seats — set to `2` for a couple, `4` for a group,
   etc.
 
+## Bundled skill: inline seat-map visualization (optional)
+
+This repo ships both an MCP server **and** a Claude skill
+([`.claude/skills/cineplex-seat-map`](./.claude/skills/cineplex-seat-map/SKILL.md)).
+They serve different jobs, and the dependency only runs one way:
+
+- **The MCP server works on its own.** All five tools return real data as
+  plain text/JSON — theatre lists, showtimes, seat scores. You can ask "which
+  IMAX showtimes have good seats" or "score seats for this showtime" and get a
+  complete answer with no skill involved. `render_seat_map_html` likewise just
+  returns a finished HTML string; a client is free to save it, open it, or
+  ignore it.
+- **The skill is the visualization layer — use it when you want the
+  interactive seat map.** Its only job is to take `render_seat_map_html`'s
+  output and render it *inline in the chat as a widget* (via the Visualizer's
+  `show_widget`) rather than dumping HTML, saving a file, or publishing a
+  hosted artifact. It's optional: remove the skill and every tool still works;
+  you just render the HTML yourself.
+
+In short: **the server answers the question; the skill draws the picture.**
+The skill can't function without this server (it orchestrates these exact
+tools), but the server never depends on the skill — which is why they live in
+one repo but stay cleanly separable.
+
 ## Example prompts
 
 - "Find theatres near me at lat 43.65, lon -79.38."
@@ -161,6 +185,11 @@ src/
                          # Has a JSON-data placeholder, no server logic.
   seatMapTemplate.js    # Loads the .html above and injects real data into
                          # its data placeholder. Never regenerates the HTML.
+.claude/
+  skills/
+    cineplex-seat-map/  # Optional visualization skill: renders
+      SKILL.md          # render_seat_map_html's output inline as a widget.
+                         # Consumes the server; the server never depends on it.
 CAPTURE.md              # Record of how the live endpoints were found, and how
                          # to re-capture them if something changes
 ```
