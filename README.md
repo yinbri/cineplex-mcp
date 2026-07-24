@@ -93,6 +93,23 @@ claude mcp add cineplex -- node /absolute/path/to/cineplex-mcp/src/index.js
   already-built, already-tested template; it never generates new HTML/JS per
   call, so there's no risk of a fresh generation shipping a UI bug.
 
+- **`render_seat_map_ascii`** — `{ theatreId, showtimeId, partySize?,
+  excludeFrontRows?, excludeSideSeats?, monochrome?, theatreName?, showLabel?,
+  buyUrl? }`
+  → a compact ASCII/emoji seat-map diagram as **plain text**: a centered SCREEN
+  banner, the auditorium as a grid of squares (🟩 open, ⬛ taken, 🟪 accessible),
+  the best `partySize`-block highlighted (🟦, centered within the run), a
+  one-line recommendation, and a trailing `🎟 Buy tickets: <url>` line. The
+  lightweight, text-only sibling of `render_seat_map_html` — for when a visual
+  helps but an interactive widget is overkill or unavailable (e.g. a plain
+  terminal). The seat grid is pasted verbatim into a fenced code block; the buy
+  line is kept **out** of the fence and rendered as a clickable Markdown link
+  just below it (links don't linkify inside ```). Pass `buyUrl` through from
+  `find_optimal_showtimes` for the correct D-BOX-aware link, or omit it to build
+  a `cineplex.com/ticketing/preview` link from the IDs. Set `monochrome: true`
+  (`·`/`▓`/`+`/`★`) where emoji width misaligns the grid. Rendering logic lives
+  in `src/seatMapAscii.js`.
+
 `theatreId`/`showtimeId` accept either a string or a number — Cineplex's IDs
 are numeric, and `find_theatres`/`find_optimal_showtimes` hand them back as
 numbers, so chaining one tool's output straight into the next one's input

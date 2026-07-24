@@ -17,6 +17,7 @@ import {
 } from "./cineplexClient.js";
 import { scoreSeatMap, DEFAULT_SCORE_OPTIONS } from "./seatScoring.js";
 import { buildSeatMapWidget, compactRows } from "./seatMapTemplate.js";
+import { renderSeatMapAscii } from "./seatMapAscii.js";
 
 // Cineplex's theatreId/showtimeId are numeric in the API, and that's what
 // find_theatres / find_optimal_showtimes hand back — but z.string() rejects
@@ -365,6 +366,70 @@ server.registerTool(
       return { isError: true, content: [{ type: "text", text: result.error }] };
     }
     return jsonResult(result);
+  }
+);
+
+server.registerTool(
+  "render_seat_map_ascii",
+  {
+    title: "Render a seat map as a text diagram",
+    description:
+      "Given a Cineplex theatre ID and showtime ID (e.g. from find_optimal_showtimes), returns a compact " +
+      "ASCII/emoji seat-map diagram as plain text: a centered SCREEN banner, the auditorium as a grid of " +
+      "squares (🟩 open, ⬛ taken, 🟪 accessible), the best block of seats for your party highlighted (🟦), and " +
+      "a one-line recommendation. This is the lightweight, text-only alternative to render_seat_map_html — use " +
+      "it when a visual helps but an interactive widget is overkill or unavailable (e.g. a plain terminal). " +
+      "IMPORTANT: emit the returned text VERBATIM inside a fenced code block (```). Do not redraw, reformat, " +
+      "re-align, translate the emoji, or 'clean it up' — the alignment is exact and hand-editing breaks it. " +
+      "ONE EXCEPTION: the final '🎟 Buy tickets: <url>' line must NOT go inside the code fence (links don't " +
+      "linkify inside ```). Keep it out of the block and render it just below as a clickable Markdown link, e.g. " +
+      "'🎟 [Buy tickets](<url>)'. Everything above that line is the diagram and goes in the fence verbatim. " +
+      "Pass theatreName and showLabel through from a prior find_theatres / find_optimal_showtimes result to " +
+      "populate the header, and buyUrl from find_optimal_showtimes for an accurate D-BOX-aware link. Set " +
+      "monochrome:true for terminals where emoji width misaligns the grid.",
+    inputSchema: {
+      theatreId: idSchema.describe("Cineplex theatre ID"),
+      showtimeId: idSchema.describe("Cineplex showtime ID"),
+      partySize: z.number().int().positive().optional().describe("How many seats you want together; the centered block of this size is highlighted. Default 2"),
+      excludeFrontRows: z.number().int().nonnegative().optional().describe("Front rows to exclude when choosing the recommended block, default 3"),
+      excludeSideSeats: z.number().int().nonnegative().optional().describe("Seats to exclude from each side wall when choosing the recommended block, default 3"),
+      monochrome: z.boolean().optional().describe("Use 1-cell ·/▓/+/★ glyphs instead of emoji squares, for terminals where emoji width breaks alignment. Default false"),
+      theatreName: z.string().optional().describe("Theatre display name for the header, e.g. from find_theatres"),
+      showLabel: z.string().optional().describe("Showtime label for the header, e.g. 'The Odyssey · 7:00 PM IMAX'"),
+      buyUrl: z.string().optional().describe("Public 'buy tickets' link for this showtime — pass through find_optimal_showtimes's buyUrl (it carries the correct D-BOX flag). If omitted, a cineplex.com/ticketing/preview link is built from the IDs."),
+    },
+  },
+  async ({ theatreId, showtimeId, partySize, excludeFrontRows, excludeSideSeats, monochrome, theatreName, showLabel, buyUrl }) => {
+    const party = partySize ?? 2;
+    const scoreOptions = {
+      excludeFrontRows: excludeFrontRows ?? DEFAULT_SCORE_OPTIONS.excludeFrontRows,
+      excludeSideSeats: excludeSideSeats ?? DEFAULT_SCORE_OPTIONS.excludeSideSeats,
+      // A block only counts as a recommendation if the whole party fits together.
+      minContiguous: party,
+    };
+    // Prefer the caller's buyUrl (find_optimal_showtimes builds it with the right
+    // dbox flag); otherwise fall back to Cineplex's public preview link — a real
+    // www.cineplex.com page that opens without a session token.
+    const link =
+      buyUrl && buyUrl !== ""
+        ? buyUrl
+        : `https://www.cineplex.com/ticketing/preview?theatreId=${encodeURIComponent(theatreId)}&showtimeId=${encodeURIComponent(showtimeId)}&dbox=false`;
+    try {
+      const raw = await getRawSeatMap({ theatreId, showtimeId });
+      const normalized = normalizeCineplexSeatMap(raw);
+      const { bestBlock } = scoreSeatMap(normalized, scoreOptions);
+      const diagram = renderSeatMapAscii(raw, {
+        bestBlock,
+        partySize: party,
+        monochrome: monochrome === true,
+        theatreName: theatreName ?? "",
+        showLabel: showLabel ?? "",
+        buyUrl: link,
+      });
+      return { content: [{ type: "text", text: diagram }] };
+    } catch (err) {
+      return errorResult(err);
+    }
   }
 );
 
