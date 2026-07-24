@@ -143,6 +143,33 @@ function todayIsoDate() {
   return new Date().toISOString().slice(0, 10);
 }
 
+/**
+ * Build the public desktop "buy tickets" / seat-preview URL for a session:
+ *   https://www.cineplex.com/ticketing/preview?theatreId=…&showtimeId=…&dbox=…
+ *
+ * This is a real www.cineplex.com page that loads without a session token and
+ * leads into Cineplex's buy flow. We construct it because Cineplex only hands
+ * us the mobile variant (`seatMapUrl`, under /en-Mobile/) — we reuse its `dbox`
+ * flag so D-BOX showtimes stay correct. Deliberately NOT the API's
+ * redirect-to-ticketing endpoints: those 401 ("User session token not set")
+ * when opened cold, since they need Cineplex's own in-site session token.
+ */
+function seatPreviewUrl(theatreId, session) {
+  if (session.vistaSessionId === undefined || session.vistaSessionId === null) return null;
+  let dbox = "false";
+  try {
+    if (session.seatMapUrl) dbox = new URL(session.seatMapUrl).searchParams.get("dbox") || "false";
+  } catch {
+    // Malformed seatMapUrl — fall back to dbox=false.
+  }
+  const params = new URLSearchParams({
+    theatreId: String(theatreId),
+    showtimeId: String(session.vistaSessionId),
+    dbox,
+  });
+  return `https://www.cineplex.com/ticketing/preview?${params.toString()}`;
+}
+
 // ---------------------------------------------------------------------------
 // Theatres + movies
 // ---------------------------------------------------------------------------
@@ -299,6 +326,11 @@ export async function getShowtimes({ movieId, theatreId, date }) {
           auditorium: s.auditorium,
           seatsRemaining: s.seatsRemaining,
           isSoldOut: s.isSoldOut,
+          // Public desktop seat-preview / buy link for this session (see
+          // seatPreviewUrl). Falls back to Cineplex's own deep link, then the
+          // mobile seat-map URL, if construction ever fails.
+          buyUrl: seatPreviewUrl(theatreId, s) ?? s.deeplinkUrl ?? s.seatMapUrl ?? null,
+          isShowtimeEnabledOnline: s.isShowtimeEnabledOnline !== false,
         });
       }
     }

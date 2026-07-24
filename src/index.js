@@ -16,7 +16,7 @@ import {
   CineplexApiError,
 } from "./cineplexClient.js";
 import { scoreSeatMap, DEFAULT_SCORE_OPTIONS } from "./seatScoring.js";
-import { buildSeatMapHtml } from "./seatMapTemplate.js";
+import { buildSeatMapWidget, compactRows } from "./seatMapTemplate.js";
 
 // Cineplex's theatreId/showtimeId are numeric in the API, and that's what
 // find_theatres / find_optimal_showtimes hand back — but z.string() rejects
@@ -43,33 +43,6 @@ function jsonResult(value) {
 
 function htmlResult(html) {
   return { content: [{ type: "text", text: html }] };
-}
-
-// The seat-map widget embeds every seat inline, so for a multi-showtime IMAX
-// auditorium the naive JSON (full seat `id`s + a separate availability map +
-// long field names, ~1000+ seats) balloons past the MCP tool-result token
-// cap — the model then never receives the HTML and can't hand it to the
-// visualizer. compactRows() shrinks the wire format ~7x by:
-//   - folding each seat's availability into the seat itself (drops the whole
-//     parallel availability map, and the seat `id`s that keyed it),
-//   - encoding each seat as a positional array [column, label, open, typeCode?]
-//     instead of a keyed object, and
-//   - omitting the type entirely for ordinary "Standard" seats.
-// The template's inflate() reverses this back into the shape its render code
-// expects, so the browser-side logic is unchanged.
-const SEAT_TYPE_CODE = { Wheelchair: "W", Companion: "C" };
-function compactRows(rawRows, availabilityMap) {
-  return rawRows.map((row) => [
-    row.number,
-    row.label ?? null,
-    row.seats.map((seat) => {
-      const open = String(availabilityMap[seat.id] ?? "").toLowerCase() === "available" ? 1 : 0;
-      const cell = [seat.column, seat.label ?? null, open];
-      const code = SEAT_TYPE_CODE[seat.type];
-      if (code) cell.push(code);
-      return cell;
-    }),
-  ]);
 }
 
 /** Fetch + normalize + score one showtime's seat map. Never throws. */
@@ -248,9 +221,9 @@ server.registerTool(
       theatreAddress: z.string().optional().describe("Theatre street address, e.g. from find_theatres"),
       distanceKm: z.number().optional().describe("Theatre distance in km, e.g. from find_theatres"),
       formatMatch: z.string().optional().describe("Case-insensitive substring to match against the showtime's format/experience tag, default 'IMAX'"),
-      excludeFrontRows: z.number().int().nonnegative().optional().describe("Number of front rows to exclude, default 3"),
-      excludeSideSeats: z.number().int().nonnegative().optional().describe("Number of seats to exclude from each side wall, default 3"),
-      minContiguous: z.number().int().positive().optional().describe("Minimum contiguous open seats required, default 1"),
+      excludeFrontRows: z.number().int().nonnegative().optional().describe("Front rows to exclude in the initial view, default 0 (widget opens unfiltered; the user can adjust it live)"),
+      excludeSideSeats: z.number().int().nonnegative().optional().describe("Seats to exclude from each side wall in the initial view, default 0 (widget opens unfiltered; the user can adjust it live)"),
+      minContiguous: z.number().int().positive().optional().describe("Minimum contiguous open seats required in the initial view, default 1 (its no-op value)"),
     },
   },
   async ({
@@ -265,10 +238,16 @@ server.registerTool(
     excludeSideSeats,
     minContiguous,
   }) => {
+    // Unlike the data tools (which default to "good seats" filtering of 3/3/1),
+    // the widget opens UNFILTERED — no front rows or side seats excluded — so
+    // the user sees the whole auditorium first, then drags the controls to
+    // apply their own preferences and watch the best block move. minContiguous
+    // stays 1 because that is its no-op value (a block is inherently >= 1 seat).
+    // Explicit params still override these.
     const scoreOptions = {
-      excludeFrontRows: excludeFrontRows ?? DEFAULT_SCORE_OPTIONS.excludeFrontRows,
-      excludeSideSeats: excludeSideSeats ?? DEFAULT_SCORE_OPTIONS.excludeSideSeats,
-      minContiguous: minContiguous ?? DEFAULT_SCORE_OPTIONS.minContiguous,
+      excludeFrontRows: excludeFrontRows ?? 0,
+      excludeSideSeats: excludeSideSeats ?? 0,
+      minContiguous: minContiguous ?? 1,
     };
 
     try {
@@ -312,6 +291,11 @@ server.registerTool(
             auditorium: session.auditorium,
             seatsRemaining: session.seatsRemaining,
             isSoldOut: session.isSoldOut,
+            // Cineplex's public "buy tickets" deep link for this session; the
+            // widget renders it as a link. onlineEnabled hides the button when
+            // Cineplex isn't selling this showtime online.
+            buyUrl: session.buyUrl ?? null,
+            onlineEnabled: session.isShowtimeEnabledOnline !== false,
             // Compact seat data (see compactRows) — the template's inflate()
             // reconstructs rawRows + availability from this. totalColumns is
             // dropped: the template derives the column range from the seats.
@@ -327,7 +311,7 @@ server.registerTool(
         return errorResult(new CineplexApiError("Found matching showtimes, but none of their seat maps could be fetched."));
       }
 
-      const html = buildSeatMapHtml({
+      const html = buildSeatMapWidget({
         movie: {
           name: best.match.title ?? best.match.name,
           runtimeInMinutes: best.match.runtimeInMinutes,

@@ -10,7 +10,11 @@
   },
   "scripts": {
     "start": "node src/index.js",
-    "test": "node --test test/"
+    "test": "node --test test/",
+    "preview": "node scripts/preview-seatmap.mjs",
+    "preview:watch": "node scripts/preview-seatmap.mjs --watch",
+    "preview:cdn": "node scripts/build-shell.mjs && node scripts/preview-seatmap.mjs --cdn",
+    "build:shell": "node scripts/build-shell.mjs"
   },
   "engines": {
     "node": ">=18"

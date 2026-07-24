@@ -165,7 +165,30 @@
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
+    align-items: stretch;
   }
+  .showtime {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .buy-link {
+    appearance: none;
+    display: block;
+    text-align: center;
+    text-decoration: none;
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 500;
+    padding: 7px 10px;
+    border-radius: var(--radius, 8px);
+    border: 1px solid transparent;
+    color: var(--on-accent, #ffffff);
+    background: var(--fill-accent, var(--accent));
+    cursor: pointer;
+  }
+  .buy-link:hover { background: var(--fill-accent-hover, var(--accent-strong)); }
+  .buy-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .chip {
     appearance: none;
     border: 1px solid var(--hairline);
@@ -772,6 +795,9 @@
     const chips = document.createElement("div");
     chips.className = "chips";
     theatre.sessions.forEach((s, i) => {
+      const showtime = document.createElement("div");
+      showtime.className = "showtime";
+
       const chip = document.createElement("button");
       chip.className = "chip";
       chip.type = "button";
@@ -789,7 +815,23 @@
         activeSessionIdx = i;
         renderPanel();
       });
-      chips.appendChild(chip);
+      showtime.appendChild(chip);
+
+      // Real Cineplex "buy tickets" deep link for this session (from the API,
+      // not constructed). Rendered as a plain link so the host intercepts the
+      // click into its own confirmation dialog — this never buys anything, it
+      // just opens Cineplex's checkout for the user to finish.
+      if (s.buyUrl && s.onlineEnabled !== false && !s.isSoldOut) {
+        const buy = document.createElement("a");
+        buy.className = "buy-link";
+        buy.href = s.buyUrl;
+        buy.target = "_blank";
+        buy.rel = "noopener noreferrer";
+        buy.textContent = "Buy tickets ↗";
+        showtime.appendChild(buy);
+      }
+
+      chips.appendChild(showtime);
     });
     panel.appendChild(chips);
 

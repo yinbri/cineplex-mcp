@@ -4,3 +4,7 @@ npm-debug.log*
 *.log
 .env
 .env.local
+
+# Local seat-map preview harness (npm run preview) — generated, not source
+preview.html
+scripts/.preview-fixture.json
