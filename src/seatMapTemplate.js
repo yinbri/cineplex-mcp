@@ -61,8 +61,13 @@ export const MINIFIED_TEMPLATE = TEMPLATE;
 // The jsDelivr tag the emitted widget wrapper points at. BUMP PROCEDURE
 // (whenever seatMapTemplate.html changes): update this constant, run
 // `npm run build:shell`, commit, `git tag <new version>`, push the tag.
-// Tags are immutable on jsDelivr, so a new version = a new tag, never a
-// force-push to an old one.
+// jsDelivr serves a tag with a 7-day client cache and no revalidation, so a
+// new version = a new tag, never a force-push to an old one. Full checklist
+// in RELEASING.md.
+//
+// You don't have to remember this: build-shell.mjs refuses to rebuild when
+// the shell's content changed but this constant didn't, and `npm test` fails
+// if dist/ is out of date with the template.
 export const SHELL_VERSION = "widget-v1";
 export const SHELL_CDN_URL =
   `https://cdn.jsdelivr.net/gh/yinbri/cineplex-mcp@${SHELL_VERSION}/dist/seatmap-shell.min.js`;

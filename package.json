@@ -1,6 +1,6 @@
 {
   "name": "cineplex-mcp",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "MCP server for finding Cineplex Canada showtimes with good seats available (personal-use, unofficial API scraping).",
   "type": "module",
   "private": true,
@@ -11,6 +11,7 @@
   "scripts": {
     "start": "node src/index.js",
     "test": "node --test test/",
+    "smoke": "node scripts/smoke.mjs",
     "preview": "node scripts/preview-seatmap.mjs",
     "preview:watch": "node scripts/preview-seatmap.mjs --watch",
     "preview:cdn": "node scripts/build-shell.mjs && node scripts/preview-seatmap.mjs --cdn",

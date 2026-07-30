@@ -20,6 +20,8 @@
  * seatScoring.js, and returns a string. All scoring stays in seatScoring.js.
  */
 
+import { bySeatNumber } from "./seatScoring.js";
+
 const FULL_WIDTH_SPACE = "　"; // 2-cell blank; matches emoji cell advance
 const SCREEN_FULL_WIDTH = "ＳＣＲＥＥＮ"; // "ＳＣＲＥＥＮ"
 const ACCESSIBLE_TYPES = new Set(["Wheelchair", "Companion"]);
@@ -44,6 +46,10 @@ function buildRows(layout, availability) {
       label: String(r.label ?? r.number ?? ""),
       seats: r.seats.map((s) => ({
         column: Number(s.column),
+        // The printed seat identifier ("A26"), which is NOT the column — see
+        // normalizeCineplexSeatMap. Used for the recommendation line so it
+        // names the seats you'd actually ask for.
+        label: s.label ?? null,
         accessible: ACCESSIBLE_TYPES.has(s.type),
         available: String(statuses[s.id] ?? "").toLowerCase() === "available",
       })),
@@ -114,9 +120,16 @@ export function renderSeatMapAscii({ layout, availability } = {}, options = {}) 
   const title = [theatreName, showLabel].filter(Boolean).join(" · ");
   if (title) lines.push(title);
   if (picks.size > 0) {
-    const seatCols = [...picks].map((p) => Number(p.split(":")[1])).sort((a, b) => a - b);
+    // Prefer the printed seat labels; fall back to columns when the layout
+    // carries no labels (e.g. a synthetic map).
+    const picked = rows
+      .flatMap((r) => r.seats.map((s) => ({ ...s, row: r.label })))
+      .filter((s) => picks.has(s.row + ":" + s.column));
+    const labels = picked.every((s) => s.label != null)
+      ? picked.map((s) => s.label).sort(bySeatNumber)
+      : picked.map((s) => String(s.column)).sort(bySeatNumber);
     lines.push(
-      `Recommended: row ${bestBlock.row}, seats ${seatCols[0]}–${seatCols[seatCols.length - 1]} (${seatCols.length} together, center)`
+      `Recommended: row ${bestBlock.row}, seats ${labels[0]}–${labels[labels.length - 1]} (${labels.length} together, center)`
     );
   } else {
     lines.push(`No block of ${partySize} together in the preferred zone — showing full availability.`);

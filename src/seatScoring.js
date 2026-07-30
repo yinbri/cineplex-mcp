@@ -13,6 +13,21 @@
  * converting a vendor's raw response into this shape.
  */
 
+/**
+ * Order seat labels by their trailing number ("A9" before "A10"), falling back
+ * to plain string order for labels that don't end in digits.
+ */
+export function bySeatNumber(a, b) {
+  const numOf = (s) => {
+    const m = /(\d+)\s*$/.exec(String(s));
+    return m ? Number(m[1]) : NaN;
+  };
+  const na = numOf(a);
+  const nb = numOf(b);
+  if (Number.isNaN(na) || Number.isNaN(nb)) return String(a).localeCompare(String(b));
+  return na - nb;
+}
+
 export const DEFAULT_SCORE_OPTIONS = {
   excludeFrontRows: 3,
   excludeSideSeats: 3,
@@ -78,10 +93,19 @@ export function scoreSeatMap(seatMap, options = {}) {
 
     const closeRun = () => {
       if (runLength > 0 && (bestBlock === null || runLength > bestBlock.length)) {
+        const seats = trimmed.slice(runStartIdx, runStartIdx + runLength);
         bestBlock = {
           row: row.row,
-          startSeat: trimmed[runStartIdx].number,
+          startSeat: seats[0].number,
           length: runLength,
+          // Printed seat identifiers, when the adapter supplies them. Seat
+          // numbering does not have to follow grid position (Cineplex numbers
+          // them in the opposite direction), so `startSeat` alone can't be
+          // shown to a user as "the seat to ask for". Sorted by trailing seat
+          // number so the range reads low-to-high the way a person expects.
+          seatLabels: seats.every((s) => s.label != null)
+            ? seats.map((s) => s.label).sort(bySeatNumber)
+            : null,
         };
       }
       runLength = 0;

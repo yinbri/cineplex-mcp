@@ -1,3 +1,31 @@
+> ## ⚠️ Historical document — superseded, do not follow
+>
+> This is the **original build spec**, written before the server existed. It
+> is kept as a record of the research and reasoning behind the project. It is
+> **not** a description of how the software works today, and several of its
+> instructions are now actively wrong:
+>
+> - Section 5 says the showtime and seat-map endpoints are "Not yet known".
+>   All four endpoints are confirmed, tested against captured fixtures, and
+>   covered by a live smoke test.
+> - Section 9 instructs you to ship `⚠️ UNVERIFIED` stubs and guessed field
+>   parsing. Nothing in the codebase is guessed; don't reintroduce stubs.
+> - Section 7 lists four MCP tools. There are six — the two seat-map
+>   renderers (`render_seat_map_ascii`, `render_seat_map_html`) came later.
+> - Section 6's file layout predates the seat-map rendering modules, the
+>   widget shell build, and the test fixtures.
+>
+> **For current documentation, use:**
+> [`README.md`](../README.md) (architecture, tools, setup) ·
+> [`CAPTURE.md`](../CAPTURE.md) (endpoints and the subscription key) ·
+> [`RELEASING.md`](../RELEASING.md) (versioning and tags).
+>
+> What's still worth reading here: the background research in §5 (why
+> Fandango was ruled out, the Open Theatre Seats fallback), the non-goals in
+> §3, and the design rationale in §6 for keeping seat scoring
+> chain-agnostic — reasoning that shaped the code and isn't recorded
+> elsewhere.
+
 # PRD: Cineplex Canada MCP Server ("cineplex-mcp")
 
 ## 1. Summary

@@ -4,6 +4,13 @@ All four Cineplex data calls are now confirmed against live responses. This
 document is a record of how they were found, kept so a future re-capture (if
 Cineplex changes something) doesn't have to start from zero.
 
+Step 3 below (recovering the subscription key) is now **automated** — the
+server re-runs it itself when the key is rejected, and falls back to this
+manual procedure only if that fails. See "If this breaks in the future".
+
+Last verified 2026-07-30: the bundled key still matches the one in
+cineplex.com's live bundle, and the theatrical API accepts it (HTTP 200).
+
 ## What's confirmed
 
 | Function | Endpoint | Auth |
@@ -43,11 +50,31 @@ Cineplex changes something) doesn't have to start from zero.
 
 ## If this breaks in the future
 
-- **Theatrical API starts 401ing** → the subscription key rotated. Re-run
-  step 3: fetch `cineplex.com`'s current `_next/static/chunks/*.js` files
-  (the exact filenames change per deploy — check
-  `performance.getEntriesByType('resource')` in a live browser session, or
-  just grep every chunk) and search for `Ocp-Apim-Subscription-Key`.
+- **Theatrical API starts 401ing** → the subscription key rotated. **The
+  server now tries to fix this itself**: on a 401 it performs step 3
+  automatically (homepage → chunk list → extract the key next to the
+  theatrical API URL), adopts the key if it works, and retries. It does this
+  at most once per process and only after a failure, so it costs nothing
+  during normal operation.
+
+  If that automatic pass fails, the error says so and recovery is manual:
+  1. Set `CINEPLEX_SUBSCRIPTION_KEY=<new key>` in the MCP server's env — this
+     overrides everything, takes effect on restart, and needs no code change.
+  2. Re-capture the key by re-running step 3 by hand: fetch `cineplex.com`'s
+     current `_next/static/chunks/*.js` files (filenames change per deploy —
+     check `performance.getEntriesByType('resource')` in a live browser
+     session, or just grep every chunk) and search for
+     `Ocp-Apim-Subscription-Key`.
+  3. Once confirmed, update `BUNDLED_SUBSCRIPTION_KEY` in
+     `cineplexClient.js` so a fresh clone works without the env var.
+
+  **When grepping by hand, do not just take the first key you find.** The
+  bundle contains several subscription keys — as of 2026-07-30 a different
+  one guards Cineplex's marketing "smart banner" API and appears *earlier*
+  in `_app.js`. The one you want sits beside
+  `apis.cineplex.com/prod/cpx/theatrical/api` (found in `9026-*.js` on that
+  date). The automatic extractor anchors on that URL for exactly this
+  reason.
 - **Ticketing API starts requiring auth** → check whether a session token
   is now needed. If a long-lived token/key turns out to be involved, load it
   from an environment variable — never hardcode it. A short-lived per-request

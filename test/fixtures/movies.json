@@ -1,0 +1,95 @@
+{
+ "totalCount": 12,
+ "items": [
+  {
+   "id": 37997,
+   "name": "Spider-Man: Brand New Day",
+   "runtimeInMinutes": 145,
+   "genres": [
+    "Action",
+    "Adventure"
+   ]
+  },
+  {
+   "id": 37617,
+   "name": "The Odyssey",
+   "runtimeInMinutes": 172,
+   "genres": [
+    "Action"
+   ]
+  },
+  {
+   "id": 36558,
+   "name": "Toy Story 5",
+   "runtimeInMinutes": 102,
+   "genres": [
+    "Animation",
+    "Comedy",
+    "Family"
+   ]
+  },
+  {
+   "id": 38505,
+   "name": "One Night Only",
+   "runtimeInMinutes": 102,
+   "genres": [
+    "Romance"
+   ]
+  },
+  {
+   "id": 60514,
+   "name": "Super Troopers 3",
+   "runtimeInMinutes": 104,
+   "genres": []
+  },
+  {
+   "id": 36540,
+   "name": "The End of Oak Street",
+   "runtimeInMinutes": 99,
+   "genres": []
+  },
+  {
+   "id": 38453,
+   "name": "Minions & Monsters",
+   "runtimeInMinutes": 90,
+   "genres": [
+    "Animation",
+    "Family"
+   ]
+  },
+  {
+   "id": 35494,
+   "name": "Moana",
+   "runtimeInMinutes": 115,
+   "genres": []
+  },
+  {
+   "id": 60470,
+   "name": "Obsession",
+   "runtimeInMinutes": 108,
+   "genres": [
+    "Horror"
+   ]
+  },
+  {
+   "id": 38162,
+   "name": "Evil Dead Burn",
+   "runtimeInMinutes": 110,
+   "genres": []
+  },
+  {
+   "id": 36740,
+   "name": "Supergirl",
+   "runtimeInMinutes": 108,
+   "genres": [
+    "Action"
+   ]
+  },
+  {
+   "id": 60897,
+   "name": "The Invite",
+   "runtimeInMinutes": 107,
+   "genres": []
+  }
+ ]
+}

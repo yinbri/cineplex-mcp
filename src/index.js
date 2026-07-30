@@ -3,6 +3,10 @@
  * MCP server entrypoint. Thin glue only — all Cineplex HTTP logic lives in
  * cineplexClient.js, all seat-scoring logic lives in seatScoring.js.
  */
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
@@ -25,9 +29,15 @@ import { renderSeatMapAscii } from "./seatMapAscii.js";
 // straight into the next tool" flow an LLM caller does. Accept either.
 const idSchema = z.union([z.string(), z.number()]).transform((v) => String(v));
 
+// The version reported in the MCP handshake (and shown by clients) is read
+// from package.json rather than duplicated here — one source of truth, so a
+// release bump can't leave the client reporting a stale version.
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const { version } = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf8"));
+
 const server = new McpServer({
   name: "cineplex-mcp",
-  version: "0.1.0",
+  version,
 });
 
 function errorResult(err) {
@@ -101,7 +111,7 @@ server.registerTool(
   {
     title: "Find a Cineplex movie by title",
     description:
-      "Fuzzy-match a movie title against Cineplex's current catalog (pages through all results) and return the best match, including the Cineplex movie ID needed by other tools.",
+      "Fuzzy-match a movie title against Cineplex's full current catalog (returned in a single response) and return the best match, including the Cineplex movie ID needed by other tools.",
     inputSchema: {
       title: z.string().describe("Movie title to search for, e.g. 'The Odyssey'"),
     },

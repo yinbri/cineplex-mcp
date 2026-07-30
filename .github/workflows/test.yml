@@ -1,0 +1,34 @@
+# Runs the offline unit suite on every push and PR.
+#
+# Deliberately does NOT run `npm run smoke`: that hits Cineplex's live API, so
+# it would turn an upstream outage (or a rotated subscription key) into a red
+# build on unrelated commits, and would point scheduled traffic at an
+# undocumented API this project is meant to stay light on. Run smoke by hand.
+name: test
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      # package.json declares engines: node >=18, so all three are tested —
+      # if 18 ever fails here, either the code or that claim needs updating.
+      matrix:
+        node-version: ["18.x", "20.x", "22.x"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm test

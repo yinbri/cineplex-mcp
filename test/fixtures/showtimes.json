@@ -1,0 +1,197 @@
+[
+ {
+  "theatre": "Cineplex Cinemas Yonge-Dundas and VIP",
+  "theatreId": 7130,
+  "dates": [
+   {
+    "startDate": "2026-07-30T00:00:00",
+    "movies": [
+     {
+      "id": 37997,
+      "name": "Spider-Man: Brand New Day",
+      "runtimeInMinutes": 145,
+      "genres": [
+       "Action",
+       "Adventure"
+      ],
+      "experiences": [
+       {
+        "experienceTypes": [
+         "UltraAVX",
+         "3D",
+         "D-BOX",
+         "Dolby Atmos"
+        ],
+        "order": 2,
+        "sessions": [
+         {
+          "seatMapUrl": "https://www.cineplex.com/en-Mobile/ticketing/preview?theatreId=7130&showtimeId=441689&dbox=True",
+          "ticketingUrl": "https://apis.cineplex.com/prod/ticketing/api/v1/routing/redirect-to-ticketing?VistaSessionId=441689&VISTAHOCategoryCode=0000000004&LocationId=7130&IsSeriesShowtime=False",
+          "ticketingRedesignUrl": "https://apis.cineplex.com/prod/ticketing/api/v1/routing/redirect-to-ticketing?VistaSessionId=441689&VISTAHOCategoryCode=0000000004&LocationId=7130&IsSeriesShowtime=False",
+          "getTicketingUrlApi": "https://apis.cineplex.com/prod/ticketing/api/v1/routing/ticketing-url?VistaSessionId=441689&VISTAHOCategoryCode=0000000004&LocationId=7130&IsSeriesShowtime=False",
+          "deeplinkUrl": "https://apis.cineplex.com/prod/cpx/theatrical/deeplink?s=441689&a=0000000004&l=7130&m=spiderman-brand-new-day&ss=False",
+          "showtimeShareKey": "v:441689_t:7130_a:0000000004",
+          "vistaSessionId": 441689,
+          "areaCode": "0000000004",
+          "showStartDateTime": "2026-07-30T19:10:00",
+          "showStartDateTimeUtc": "2026-07-30T23:10:00Z",
+          "isInThePast": false,
+          "isReservedSeating": true,
+          "isShowtimeEnabledOnline": true,
+          "seatsRemaining": 33,
+          "isSoldOut": false,
+          "auditorium": "AVX #7"
+         },
+         {
+          "seatMapUrl": "https://www.cineplex.com/en-Mobile/ticketing/preview?theatreId=7130&showtimeId=441690&dbox=True",
+          "ticketingUrl": "https://apis.cineplex.com/prod/ticketing/api/v1/routing/redirect-to-ticketing?VistaSessionId=441690&VISTAHOCategoryCode=0000000004&LocationId=7130&IsSeriesShowtime=False",
+          "ticketingRedesignUrl": "https://apis.cineplex.com/prod/ticketing/api/v1/routing/redirect-to-ticketing?VistaSessionId=441690&VISTAHOCategoryCode=0000000004&LocationId=7130&IsSeriesShowtime=False",
+          "getTicketingUrlApi": "https://apis.cineplex.com/prod/ticketing/api/v1/routing/ticketing-url?VistaSessionId=441690&VISTAHOCategoryCode=0000000004&LocationId=7130&IsSeriesShowtime=False",
+          "deeplinkUrl": "https://apis.cineplex.com/prod/cpx/theatrical/deeplink?s=441690&a=0000000004&l=7130&m=spiderman-brand-new-day&ss=False",
+          "showtimeShareKey": "v:441690_t:7130_a:0000000004",
+          "vistaSessionId": 441690,
+          "areaCode": "0000000004",
+          "showStartDateTime": "2026-07-30T22:30:00",
+          "showStartDateTimeUtc": "2026-07-31T02:30:00Z",
+          "isInThePast": false,
+          "isReservedSeating": true,
+          "isShowtimeEnabledOnline": true,
+          "seatsRemaining": 105,
+          "isSoldOut": false,
+          "auditorium": "AVX #7"
+         }
+        ]
+       },
+       {
+        "experienceTypes": [
+         "UltraAVX",
+         "3D",
+         "Dolby Atmos"
+        ],
+        "order": 3,
+        "sessions": [
+         {
+          "seatMapUrl": "https://www.cineplex.com/en-Mobile/ticketing/preview?theatreId=7130&showtimeId=441689&dbox=False",
+          "ticketingUrl": "https://apis.cineplex.com/prod/ticketing/api/v1/routing/redirect-to-ticketing?VistaSessionId=441689&VISTAHOCategoryCode=0000000001&LocationId=7130&IsSeriesShowtime=False",
+          "ticketingRedesignUrl": "https://apis.cineplex.com/prod/ticketing/api/v1/routing/redirect-to-ticketing?VistaSessionId=441689&VISTAHOCategoryCode=0000000001&LocationId=7130&IsSeriesShowtime=False",
+          "getTicketingUrlApi": "https://apis.cineplex.com/prod/ticketing/api/v1/routing/ticketing-url?VistaSessionId=441689&VISTAHOCategoryCode=0000000001&LocationId=7130&IsSeriesShowtime=False",
+          "deeplinkUrl": "https://apis.cineplex.com/prod/cpx/theatrical/deeplink?s=441689&a=0000000001&l=7130&m=spiderman-brand-new-day&ss=False",
+          "showtimeShareKey": "v:441689_t:7130_a:0000000001",
+          "vistaSessionId": 441689,
+          "areaCode": "0000000001",
+          "showStartDateTime": "2026-07-30T19:10:00",
+          "showStartDateTimeUtc": "2026-07-30T23:10:00Z",
+          "isInThePast": false,
+          "isReservedSeating": true,
+          "isShowtimeEnabledOnline": true,
+          "seatsRemaining": 33,
+          "isSoldOut": false,
+          "auditorium": "AVX #7"
+         },
+         {
+          "seatMapUrl": "https://www.cineplex.com/en-Mobile/ticketing/preview?theatreId=7130&showtimeId=441690&dbox=False",
+          "ticketingUrl": "https://apis.cineplex.com/prod/ticketing/api/v1/routing/redirect-to-ticketing?VistaSessionId=441690&VISTAHOCategoryCode=0000000001&LocationId=7130&IsSeriesShowtime=False",
+          "ticketingRedesignUrl": "https://apis.cineplex.com/prod/ticketing/api/v1/routing/redirect-to-ticketing?VistaSessionId=441690&VISTAHOCategoryCode=0000000001&LocationId=7130&IsSeriesShowtime=False",
+          "getTicketingUrlApi": "https://apis.cineplex.com/prod/ticketing/api/v1/routing/ticketing-url?VistaSessionId=441690&VISTAHOCategoryCode=0000000001&LocationId=7130&IsSeriesShowtime=False",
+          "deeplinkUrl": "https://apis.cineplex.com/prod/cpx/theatrical/deeplink?s=441690&a=0000000001&l=7130&m=spiderman-brand-new-day&ss=False",
+          "showtimeShareKey": "v:441690_t:7130_a:0000000001",
+          "vistaSessionId": 441690,
+          "areaCode": "0000000001",
+          "showStartDateTime": "2026-07-30T22:30:00",
+          "showStartDateTimeUtc": "2026-07-31T02:30:00Z",
+          "isInThePast": false,
+          "isReservedSeating": true,
+          "isShowtimeEnabledOnline": true,
+          "seatsRemaining": 105,
+          "isSoldOut": false,
+          "auditorium": "AVX #7"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "id": 37617,
+      "name": "The Odyssey",
+      "runtimeInMinutes": 172,
+      "genres": [
+       "Action"
+      ],
+      "experiences": [
+       {
+        "experienceTypes": [
+         "VIP 19+"
+        ],
+        "order": 2,
+        "sessions": [
+         {
+          "seatMapUrl": "https://www.cineplex.com/en-Mobile/ticketing/preview?theatreId=7130&showtimeId=445179&dbox=False",
+          "ticketingUrl": "https://apis.cineplex.com/prod/ticketing/api/v1/routing/redirect-to-ticketing?VistaSessionId=445179&VISTAHOCategoryCode=0000000001&LocationId=7130&IsSeriesShowtime=False",
+          "ticketingRedesignUrl": "https://apis.cineplex.com/prod/ticketing/api/v1/routing/redirect-to-ticketing?VistaSessionId=445179&VISTAHOCategoryCode=0000000001&LocationId=7130&IsSeriesShowtime=False",
+          "getTicketingUrlApi": "https://apis.cineplex.com/prod/ticketing/api/v1/routing/ticketing-url?VistaSessionId=445179&VISTAHOCategoryCode=0000000001&LocationId=7130&IsSeriesShowtime=False",
+          "deeplinkUrl": "https://apis.cineplex.com/prod/cpx/theatrical/deeplink?s=445179&a=0000000001&l=7130&m=the-odyssey&ss=False",
+          "showtimeShareKey": "v:445179_t:7130_a:0000000001",
+          "vistaSessionId": 445179,
+          "areaCode": "0000000001",
+          "showStartDateTime": "2026-07-30T20:30:00",
+          "showStartDateTimeUtc": "2026-07-31T00:30:00Z",
+          "isInThePast": false,
+          "isReservedSeating": true,
+          "isShowtimeEnabledOnline": true,
+          "seatsRemaining": 31,
+          "isSoldOut": false,
+          "auditorium": "VIP 3 (19+)"
+         },
+         {
+          "seatMapUrl": "https://www.cineplex.com/en-Mobile/ticketing/preview?theatreId=7130&showtimeId=445193&dbox=False",
+          "ticketingUrl": "https://apis.cineplex.com/prod/ticketing/api/v1/routing/redirect-to-ticketing?VistaSessionId=445193&VISTAHOCategoryCode=0000000001&LocationId=7130&IsSeriesShowtime=False",
+          "ticketingRedesignUrl": "https://apis.cineplex.com/prod/ticketing/api/v1/routing/redirect-to-ticketing?VistaSessionId=445193&VISTAHOCategoryCode=0000000001&LocationId=7130&IsSeriesShowtime=False",
+          "getTicketingUrlApi": "https://apis.cineplex.com/prod/ticketing/api/v1/routing/ticketing-url?VistaSessionId=445193&VISTAHOCategoryCode=0000000001&LocationId=7130&IsSeriesShowtime=False",
+          "deeplinkUrl": "https://apis.cineplex.com/prod/cpx/theatrical/deeplink?s=445193&a=0000000001&l=7130&m=the-odyssey&ss=False",
+          "showtimeShareKey": "v:445193_t:7130_a:0000000001",
+          "vistaSessionId": 445193,
+          "areaCode": "0000000001",
+          "showStartDateTime": "2026-07-30T21:15:00",
+          "showStartDateTimeUtc": "2026-07-31T01:15:00Z",
+          "isInThePast": false,
+          "isReservedSeating": true,
+          "isShowtimeEnabledOnline": true,
+          "seatsRemaining": 70,
+          "isSoldOut": false,
+          "auditorium": "VIP 1 (19+)"
+         }
+        ]
+       },
+       {
+        "experienceTypes": [
+         "IMAX"
+        ],
+        "order": 3,
+        "sessions": [
+         {
+          "seatMapUrl": "https://www.cineplex.com/en-Mobile/ticketing/preview?theatreId=7130&showtimeId=445190&dbox=False",
+          "ticketingUrl": "https://apis.cineplex.com/prod/ticketing/api/v1/routing/redirect-to-ticketing?VistaSessionId=445190&VISTAHOCategoryCode=0000000001&LocationId=7130&IsSeriesShowtime=False",
+          "ticketingRedesignUrl": "https://apis.cineplex.com/prod/ticketing/api/v1/routing/redirect-to-ticketing?VistaSessionId=445190&VISTAHOCategoryCode=0000000001&LocationId=7130&IsSeriesShowtime=False",
+          "getTicketingUrlApi": "https://apis.cineplex.com/prod/ticketing/api/v1/routing/ticketing-url?VistaSessionId=445190&VISTAHOCategoryCode=0000000001&LocationId=7130&IsSeriesShowtime=False",
+          "deeplinkUrl": "https://apis.cineplex.com/prod/cpx/theatrical/deeplink?s=445190&a=0000000001&l=7130&m=the-odyssey&ss=False",
+          "showtimeShareKey": "v:445190_t:7130_a:0000000001",
+          "vistaSessionId": 445190,
+          "areaCode": "0000000001",
+          "showStartDateTime": "2026-07-30T22:00:00",
+          "showStartDateTimeUtc": "2026-07-31T02:00:00Z",
+          "isInThePast": false,
+          "isReservedSeating": true,
+          "isShowtimeEnabledOnline": true,
+          "seatsRemaining": 115,
+          "isSoldOut": false,
+          "auditorium": "IMAX #6"
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+]
