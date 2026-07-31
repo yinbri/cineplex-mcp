@@ -23,7 +23,29 @@ import {
 import { resolveLocation } from "./locationResolver.js";
 import { scoreSeatMap, DEFAULT_SCORE_OPTIONS } from "./seatScoring.js";
 import { buildSeatMapWidget, compactRows } from "./seatMapTemplate.js";
-import { renderSeatMapAscii } from "./seatMapAscii.js";
+import { renderSeatMapAscii, toPastableReply } from "./seatMapAscii.js";
+
+// Prepended to every render_seat_map_ascii result. The client collapses tool
+// results behind a "tools used" disclosure, so a diagram that is merely
+// returned is a diagram the user never sees — it only lands if the assistant
+// reproduces it. Stating that at result-read time, next to the payload it
+// applies to, holds up far better than the same words buried in the tool
+// description (which is read once, long before the result arrives).
+const ASCII_DISPLAY_INSTRUCTION = [
+  "⚠️ DISPLAY REQUIRED — the user CANNOT see this tool result. This client hides tool output behind a",
+  '"tools used" disclosure they have to click. If you only summarize or describe the seat map, or reply as',
+  "though it had been displayed, the user sees nothing.",
+  "",
+  "Copy the payload below — everything between the two ===== marker lines, excluding the markers themselves —",
+  "into your reply, verbatim. Put it wherever it reads best around your prose.",
+  "",
+  "It is already formatted for you. The diagram sits inside a ``` fence (its column alignment is exact:",
+  "re-drawing, re-aligning, re-spacing, translating the emoji, or dropping rows all break it), and the buy",
+  "link is already a Markdown link placed outside the fence so it stays clickable. Paste it whole — do not",
+  "rebuild it, re-fence it, shorten it, or drop the row-by-row grid. The grid is the entire reason to call",
+  "this tool; the recommendation line alone is already available from find_optimal_showtimes and",
+  "get_optimal_seats without it.",
+].join("\n");
 
 // Cineplex's theatreId/showtimeId are numeric in the API, and that's what
 // find_theatres / find_optimal_showtimes hand back — but z.string() rejects
@@ -471,18 +493,17 @@ server.registerTool(
   {
     title: "Render a seat map as a text diagram",
     description:
-      "Given a Cineplex theatre ID and showtime ID (e.g. from find_optimal_showtimes), returns a compact " +
-      "ASCII/emoji seat-map diagram as plain text: a centered SCREEN banner, the auditorium as a grid of " +
-      "squares (🟩 open, ⬛ taken, 🟪 accessible), the best block of seats for your party highlighted (🟦), and " +
-      "a one-line recommendation. THIS IS THE DEFAULT seat map — use it whenever showing the seats helps " +
-      "answer a question, and render it directly as part of your answer rather than asking the user whether " +
-      "they want it. It is plain text, so it works in every client with no setup. Only use render_seat_map_html " +
-      "instead when the user has explicitly asked for an interactive or visual version. " +
-      "IMPORTANT: emit the returned text VERBATIM inside a fenced code block (```). Do not redraw, reformat, " +
-      "re-align, translate the emoji, or 'clean it up' — the alignment is exact and hand-editing breaks it. " +
-      "ONE EXCEPTION: the final '🎟 Buy tickets: <url>' line must NOT go inside the code fence (links don't " +
-      "linkify inside ```). Keep it out of the block and render it just below as a clickable Markdown link, e.g. " +
-      "'🎟 [Buy tickets](<url>)'. Everything above that line is the diagram and goes in the fence verbatim. " +
+      "THE USER NEVER SEES THIS TOOL'S OUTPUT — the client keeps tool results collapsed behind a 'tools used' " +
+      "disclosure. Calling this tool displays nothing on its own; the seat map reaches the user ONLY if you " +
+      "paste the payload it returns into your reply. The result arrives already formatted and marked 'COPY " +
+      "EVERYTHING BELOW THIS LINE' precisely so that this is copy-paste, not reassembly. " +
+      "Given a Cineplex theatre ID and showtime ID (e.g. from find_optimal_showtimes), it returns a compact " +
+      "ASCII/emoji seat-map diagram: a centered SCREEN banner, the auditorium as a grid of squares " +
+      "(🟩 open, ⬛ taken, 🟪 accessible), the best block of seats for your party highlighted (🟦), and a " +
+      "one-line recommendation. THIS IS THE DEFAULT seat map — use it whenever showing the seats helps answer " +
+      "a question, and render it as part of your answer rather than asking the user whether they want it. It " +
+      "is plain text, so it works in every client with no setup. Only use render_seat_map_html instead when " +
+      "the user has explicitly asked for an interactive or visual version. " +
       "Pass theatreName and showLabel through from a prior find_theatres / find_optimal_showtimes result to " +
       "populate the header, and buyUrl from find_optimal_showtimes for an accurate D-BOX-aware link. Set " +
       "monochrome:true for terminals where emoji width misaligns the grid.",
@@ -525,7 +546,16 @@ server.registerTool(
         showLabel: showLabel ?? "",
         buyUrl: link,
       });
-      return { content: [{ type: "text", text: diagram }] };
+      // Two blocks: the display instruction, then the ready-to-paste payload.
+      // Splitting them keeps the instruction from being copied along with the
+      // diagram, and puts it where the assistant reads it at result time —
+      // which lands far more reliably than the tool description alone.
+      return {
+        content: [
+          { type: "text", text: ASCII_DISPLAY_INSTRUCTION },
+          { type: "text", text: toPastableReply(diagram) },
+        ],
+      };
     } catch (err) {
       return errorResult(err);
     }

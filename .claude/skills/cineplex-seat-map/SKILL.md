@@ -43,6 +43,14 @@ as a text diagram?" is not a useful turn. Render the ASCII map as part of
 the answer, and if the interactive view seems worth offering, say so in a
 closing line *after* the answer is already complete.
 
+**Calling `render_seat_map_ascii` does not display anything.** The client
+keeps tool results collapsed behind a "tools used" disclosure the user has
+to click, so a diagram that was merely returned is a diagram the user never
+saw. The result comes back as a display instruction plus a ready-to-paste
+payload between `===== COPY ... =====` markers; paste that payload into
+your reply verbatim. It is already fenced, already has the buy link outside
+the fence — copy it whole rather than rebuilding it.
+
 ## Procedure
 
 1. Resolve whatever `render_seat_map_html` needs (`movieTitle`, `theatreId`,

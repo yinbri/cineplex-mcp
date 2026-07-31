@@ -147,11 +147,16 @@ claude mcp add cineplex -e CINEPLEX_SUBSCRIPTION_KEY=… -- node /absolute/path/
   → a compact ASCII/emoji seat-map diagram as **plain text**: a centered SCREEN
   banner, the auditorium as a grid of squares (🟩 open, ⬛ taken, 🟪 accessible),
   the best `partySize`-block highlighted (🟦, centered within the run), a
-  one-line recommendation, and a trailing `🎟 Buy tickets: <url>` line. Works in
-  any MCP client with no extra setup — it's just text. The seat grid is pasted
-  verbatim into a fenced code block; the buy line is kept **out** of the fence
-  and rendered as a clickable Markdown link just below it (links don't linkify
-  inside ```). Pass `buyUrl` through from `find_optimal_showtimes` for the
+  one-line recommendation, and a `🎟 Buy tickets` link. Works in any MCP client
+  with no extra setup — it's just text. Because most clients keep tool results
+  collapsed behind a "tools used" disclosure, the diagram is only visible if the
+  assistant pastes it into its reply, so the result ships as two blocks: a
+  display instruction, then a ready-to-paste payload fenced by `===== COPY
+  EVERYTHING BELOW THIS LINE =====` markers. The payload arrives pre-formatted —
+  the grid already inside a ``` fence, the buy line already lifted **out** of the
+  fence as a clickable Markdown link (links don't linkify inside ```) — so
+  displaying it is copy-paste, not reassembly.
+  Pass `buyUrl` through from `find_optimal_showtimes` for the
   correct D-BOX-aware link, or omit it to build a
   `cineplex.com/ticketing/preview` link from the IDs. Set `monochrome: true`
   (`·`/`▓`/`+`/`★`) where emoji width misaligns the grid. Rendering logic lives

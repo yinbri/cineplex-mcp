@@ -1,6 +1,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { renderSeatMapAscii } from "../src/seatMapAscii.js";
+import { renderSeatMapAscii, toPastableReply, COPY_START, COPY_END } from "../src/seatMapAscii.js";
 
 /**
  * Builds Cineplex-shaped raw { layout, availability } for a synthetic
@@ -93,5 +93,40 @@ describe("renderSeatMapAscii", () => {
   test("empty layout degrades gracefully", () => {
     const out = renderSeatMapAscii({ layout: { standardSeats: { rows: [] } }, availability: {} }, {});
     assert.equal(out, "No seat data available to draw.");
+  });
+});
+
+describe("toPastableReply", () => {
+  const raw = buildRaw(2, 3);
+  const url = "https://www.cineplex.com/ticketing/preview?theatreId=7402&showtimeId=1&dbox=false";
+
+  test("fences the diagram and lifts the buy link out as a Markdown link", () => {
+    const diagram = renderSeatMapAscii(raw, { partySize: 1, buyUrl: url });
+    const out = toPastableReply(diagram);
+    const lines = out.split("\n");
+
+    assert.equal(lines[0], COPY_START);
+    assert.equal(lines[1], "```");
+    assert.equal(lines[lines.length - 1], COPY_END);
+    assert.equal(lines[lines.length - 2], `🎟 [Buy tickets](${url})`);
+    // The link sits outside the fence: the last ``` closes before it.
+    assert.equal(lines[lines.length - 4], "```");
+    // Raw "Buy tickets: <url>" form is gone — only the Markdown link remains.
+    assert.ok(!out.includes("Buy tickets: "), `raw buy line survived:\n${out}`);
+    // Every seat row still present, untouched.
+    for (const label of ["A", "B"]) {
+      const row = diagram.split("\n").find((l) => l.startsWith(`${label}  `));
+      assert.ok(out.includes(row), `row ${label} missing from payload:\n${out}`);
+    }
+  });
+
+  test("emits a bare fenced block when there is no buy link", () => {
+    const out = toPastableReply(renderSeatMapAscii(raw, { partySize: 1 }));
+    const lines = out.split("\n");
+    assert.equal(lines[0], COPY_START);
+    assert.equal(lines[1], "```");
+    assert.equal(lines[lines.length - 2], "```");
+    assert.equal(lines[lines.length - 1], COPY_END);
+    assert.ok(!out.includes("Buy tickets"), "unexpected buy line");
   });
 });

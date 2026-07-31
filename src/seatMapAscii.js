@@ -172,3 +172,42 @@ export function renderSeatMapAscii({ layout, availability } = {}, options = {}) 
 
   return lines.join("\n");
 }
+
+/** Marker lines that fence off the copy-me payload in the tool result. */
+export const COPY_START = "===== COPY EVERYTHING BELOW THIS LINE INTO YOUR REPLY =====";
+export const COPY_END = "===== COPY EVERYTHING ABOVE THIS LINE =====";
+
+/**
+ * Wraps a rendered diagram into the exact Markdown the assistant should paste
+ * into its reply, and fences it with COPY_START/COPY_END markers.
+ *
+ * Assembling this server-side (rather than describing it in the tool
+ * description and hoping) is deliberate: the client collapses tool results
+ * behind a "tools used" disclosure, so the diagram only reaches the user if the
+ * assistant reproduces it. The less reassembly that step requires, the more
+ * often it survives — so the code fence is already applied, and the buy link is
+ * already lifted out of the fence as a Markdown link (links don't linkify
+ * inside ```). The assistant's whole job becomes copy-paste.
+ *
+ * @param {string} diagram Output of renderSeatMapAscii.
+ * @returns {string} Marker-fenced, ready-to-paste Markdown.
+ */
+export function toPastableReply(diagram) {
+  const lines = String(diagram).split("\n");
+
+  // Lift the trailing "🎟 Buy tickets: <url>" line (and the blank line before
+  // it) out of the diagram so it can live outside the code fence.
+  let buyLine = "";
+  const last = lines[lines.length - 1] ?? "";
+  const match = /^🎟 Buy tickets: (\S+)$/.exec(last);
+  if (match) {
+    lines.pop();
+    while (lines.length && lines[lines.length - 1] === "") lines.pop();
+    buyLine = `🎟 [Buy tickets](${match[1]})`;
+  }
+
+  const parts = ["```", lines.join("\n"), "```"];
+  if (buyLine) parts.push("", buyLine);
+
+  return [COPY_START, ...parts, COPY_END].join("\n");
+}
