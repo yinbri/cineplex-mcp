@@ -298,10 +298,15 @@ server.registerTool(
   {
     title: "Render an interactive seat map widget",
     description:
+      "OPT-IN. Call this ONLY when the user has explicitly asked for an interactive or visual seat map — " +
+      "\"make it interactive\", \"visualize it\", \"can I see the seats\". For every other seat or showtime " +
+      "question, including \"which showtime should we book\" and \"are there good seats left\", answer in text " +
+      "and use render_seat_map_ascii instead; do NOT reach for this tool just because a question involves " +
+      "seats. Requires a client that can display inline HTML widgets. " +
       "Given a movie title, theatre, and date, returns a complete, self-contained, already-tested HTML page " +
       "that visualizes real seat availability: theatre header, a showtime picker, a pannable/zoomable " +
       "auditorium seat map, live front-row/side/min-together filter controls, and a stats strip. " +
-      "IMPORTANT: render the returned HTML inline in the chat as a widget (via the Visualizer's show_widget / " +
+      "Once called, render the returned HTML inline in the chat as a widget (via the Visualizer's show_widget / " +
       "widget_code) exactly as given — never save it to a file, publish it as a hosted artifact, or open it in " +
       "a browser. Do not rewrite, regenerate, paraphrase, or modify the code in any way, just pass it through " +
       "verbatim. Pass theatreName/theatreAddress/distanceKm through from a prior find_theatres result if you " +
@@ -469,8 +474,10 @@ server.registerTool(
       "Given a Cineplex theatre ID and showtime ID (e.g. from find_optimal_showtimes), returns a compact " +
       "ASCII/emoji seat-map diagram as plain text: a centered SCREEN banner, the auditorium as a grid of " +
       "squares (🟩 open, ⬛ taken, 🟪 accessible), the best block of seats for your party highlighted (🟦), and " +
-      "a one-line recommendation. This is the lightweight, text-only alternative to render_seat_map_html — use " +
-      "it when a visual helps but an interactive widget is overkill or unavailable (e.g. a plain terminal). " +
+      "a one-line recommendation. THIS IS THE DEFAULT seat map — use it whenever showing the seats helps " +
+      "answer a question, and render it directly as part of your answer rather than asking the user whether " +
+      "they want it. It is plain text, so it works in every client with no setup. Only use render_seat_map_html " +
+      "instead when the user has explicitly asked for an interactive or visual version. " +
       "IMPORTANT: emit the returned text VERBATIM inside a fenced code block (```). Do not redraw, reformat, " +
       "re-align, translate the emoji, or 'clean it up' — the alignment is exact and hand-editing breaks it. " +
       "ONE EXCEPTION: the final '🎟 Buy tickets: <url>' line must NOT go inside the code fence (links don't " +
