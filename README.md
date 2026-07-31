@@ -14,6 +14,14 @@ failures (429/5xx, dropped sockets) are retried with backoff that honours
 `Retry-After`, and anything still broken surfaces as a clear message instead
 of a crash.
 
+## Demo
+
+https://github.com/user-attachments/assets/8b19e98a-921c-4041-920b-d82a6b0f14db
+
+**This is a personal-use tool, not a commercial product.**
+...
+
+
 ## Status: all five Cineplex data endpoints are confirmed working
 
 All five calls this server depends on hit real, live `apis.cineplex.com`
