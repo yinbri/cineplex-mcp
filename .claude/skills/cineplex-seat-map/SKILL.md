@@ -1,6 +1,6 @@
 ---
 name: cineplex-seat-map
-description: Use ONLY when the user explicitly asks to see a Cineplex seat map or asks for an interactive/visual version — e.g. "show me the seat map", "can I see the seats", "make that interactive", "visualize it". Do NOT use for ordinary showtime, ticket, or seat-quality questions ("which showtime should we book", "are there good seats left") — those are answered in text, with render_seat_map_ascii for any diagram. When it does apply, always render as an inline widget, never a file artifact.
+description: Use ONLY when the user explicitly asks for an interactive or visual Cineplex seat map — e.g. "make that interactive", "visualize it", "show me the seat map". Do NOT use for ordinary showtime, ticket, or seat-quality questions ("which showtime should we book", "are there good seats left") — answer those in text and call render_seat_map_ascii directly to show the seats, without asking permission first. When this skill does apply, always render as an inline widget, never a file artifact.
 ---
 
 # Cineplex seat map
@@ -23,9 +23,9 @@ any question that happens to involve seats.
 - "is there a better view of this"
 
 **Do not use it** for ordinary ticketing questions, even though they are
-about seats. Answer those in text, using `find_optimal_showtimes` /
-`get_optimal_seats`, and reach for `render_seat_map_ascii` if a diagram
-genuinely clarifies the answer:
+about seats. Answer those in text with `find_optimal_showtimes` /
+`get_optimal_seats`, and call **`render_seat_map_ascii`** to show the
+recommended seats:
 
 - "which showtime should we book?"
 - "are there two seats together for The Odyssey tonight?"
@@ -34,11 +34,14 @@ genuinely clarifies the answer:
 
 The distinction is what the user asked for. "Which showtime should we book"
 is a decision question — the answer is a recommendation, and replacing it
-with a picture makes the user do the analysis themselves. The widget is a
+with a widget makes the user do the analysis themselves. The widget is a
 richer way to *look*, not a substitute for answering.
 
-When in doubt, answer in text and offer the visual: "want me to show the
-seat map?" costs one line and leaves the choice with the user.
+**This skill withholds the widget, never the answer.** Do not ask
+permission before rendering a text diagram — "would you like me to show it
+as a text diagram?" is not a useful turn. Render the ASCII map as part of
+the answer, and if the interactive view seems worth offering, say so in a
+closing line *after* the answer is already complete.
 
 ## Procedure
 
