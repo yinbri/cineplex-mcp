@@ -306,16 +306,25 @@ plain terminal, or any MCP client, because the output is just text.
 
 For a richer view, this repo also ships a Claude skill at
 [`.claude/skills/cineplex-seat-map`](./.claude/skills/cineplex-seat-map/SKILL.md).
-Installing it makes Claude prefer **`render_seat_map_html`** and render its
-output *inline in the chat as a live widget* — a pannable/zoomable auditorium
-where you can switch between theatres and showtimes, drag the front-row /
-side-seat / seats-together filters and watch the best block move in real time,
-and read a live stats strip.
+When you **ask to see the seat map**, it renders **`render_seat_map_html`**
+*inline in the chat as a live widget* — a pannable/zoomable auditorium where you
+can switch between theatres and showtimes, drag the front-row / side-seat /
+seats-together filters and watch the best block move in real time, and read a
+live stats strip.
+
+The skill is **opt-in per request, not a global mode.** It fires on "show me
+the seat map", "can I see the seats", "make that interactive" — and stays out
+of the way for ordinary ticketing questions like "which showtime should we
+book?", which are answered in text. That distinction is deliberate: an earlier
+version triggered whenever a visual "would help", which meant every Cineplex
+question returned a widget instead of an answer. A decision question deserves
+a recommendation; the widget is a better way to *look*, not a substitute for
+answering.
 
 To install it, copy the skill folder into wherever your client loads skills
 from (e.g. your user-level `~/.claude/skills/`), or just open this repo as your
-project so `.claude/skills/` is picked up automatically. Removing it reverts
-you to the ASCII map.
+project so `.claude/skills/` is picked up automatically. Removing it leaves you
+with the ASCII map only.
 
 The widget requires a client that can render inline HTML widgets (the
 Visualizer's `show_widget`). In a client without one, stay on the ASCII map —

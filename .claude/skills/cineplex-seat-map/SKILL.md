@@ -1,14 +1,44 @@
 ---
 name: cineplex-seat-map
-description: Use whenever the user asks about Cineplex movie showtimes, ticket availability, or seat selection and a visual seat map would help — e.g. "find IMAX showtimes with good seats", "show me the seat map for this showtime", "are there good seats left for The Odyssey tonight". Always renders as an inline widget, never a file artifact.
+description: Use ONLY when the user explicitly asks to see a Cineplex seat map or asks for an interactive/visual version — e.g. "show me the seat map", "can I see the seats", "make that interactive", "visualize it". Do NOT use for ordinary showtime, ticket, or seat-quality questions ("which showtime should we book", "are there good seats left") — those are answered in text, with render_seat_map_ascii for any diagram. When it does apply, always render as an inline widget, never a file artifact.
 ---
 
 # Cineplex seat map
 
-When a Cineplex ticketing/seat question calls for a visual, use the
+When the user has **explicitly asked to see** a Cineplex seat map, use the
 `cineplex` MCP server's `render_seat_map_html` tool and render its result
 inline via the Visualizer's `show_widget` tool — never as a file, never
 opened in a browser or any external viewer.
+
+## When this applies — and when it does not
+
+This skill is **opt-in**. It fires on a request to *see* something, not on
+any question that happens to involve seats.
+
+**Use it** when the user asks for the map or for a visual:
+
+- "show me the seat map for that showtime"
+- "can I see where the free seats are"
+- "make that interactive" / "can you visualize it"
+- "is there a better view of this"
+
+**Do not use it** for ordinary ticketing questions, even though they are
+about seats. Answer those in text, using `find_optimal_showtimes` /
+`get_optimal_seats`, and reach for `render_seat_map_ascii` if a diagram
+genuinely clarifies the answer:
+
+- "which showtime should we book?"
+- "are there two seats together for The Odyssey tonight?"
+- "find IMAX showtimes with good seats near me"
+- "what's the best-seated screening this weekend?"
+
+The distinction is what the user asked for. "Which showtime should we book"
+is a decision question — the answer is a recommendation, and replacing it
+with a picture makes the user do the analysis themselves. The widget is a
+richer way to *look*, not a substitute for answering.
+
+When in doubt, answer in text and offer the visual: "want me to show the
+seat map?" costs one line and leaves the choice with the user.
 
 ## Procedure
 
@@ -39,6 +69,13 @@ opened in a browser or any external viewer.
    widget itself is the answer, not a supplement to a text answer.
 
 ## Why this matters
+
+Being opt-in is deliberate. An earlier version of this skill triggered
+whenever "a visual seat map would help", which in practice meant every
+Cineplex question — so "which showtime should we book?" returned a widget
+instead of an answer. Text is the right default: it works in every client
+with no setup, it fits a decision question, and it leaves the interactive
+view available for when someone actually wants to look at the room.
 
 `render_seat_map_html` exists specifically so Claude never hand-writes new
 seat-map UI code per request — that risks shipping a fresh bug every time
