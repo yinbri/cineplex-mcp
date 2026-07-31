@@ -190,6 +190,68 @@ describe("cineplexFetch retry behaviour (via getTheatres)", () => {
   });
 });
 
+describe("getTheatres enforces rangeKm client-side", () => {
+  const realFetch = globalThis.fetch;
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  const response = (body) => ({
+    ok: true,
+    status: 200,
+    statusText: "200",
+    headers: { get: () => null },
+    json: async () => body,
+  });
+
+  const at = (theatreId, km) => ({
+    theatreId,
+    theatreName: `T${theatreId}`,
+    location: { distanceToOriginInMeters: km * 1000 },
+  });
+
+  /**
+   * Cineplex ignores `accuracyKm` and always returns its 15 nearest theatres —
+   * confirmed live from Moose Jaw, where a 1 km and a 200 km request both came
+   * back with the same list, the farthest 600 km out. Without a client-side
+   * filter those distant theatres are reported as being within the requested
+   * radius.
+   */
+  test("drops theatres beyond the requested radius", async () => {
+    globalThis.fetch = async () => response([at(1, 2.3), at(2, 40), at(3, 599.7)]);
+
+    const theatres = await getTheatres({ lat: 11.011, lon: -11.011, rangeKm: 50 });
+
+    assert.deepEqual(
+      theatres.map((t) => t.theatreId),
+      [1, 2],
+      "the 599.7 km theatre is not within 50 km"
+    );
+  });
+
+  test("a tight radius can legitimately return nothing", async () => {
+    globalThis.fetch = async () => response([at(1, 2.3), at(2, 40), at(3, 599.7)]);
+
+    const theatres = await getTheatres({ lat: 12.012, lon: -12.012, rangeKm: 1 });
+
+    assert.deepEqual(theatres, []);
+  });
+
+  test("keeps entries whose distance Cineplex did not report", async () => {
+    // Unknown is not out-of-range; dropping these would hide a real theatre
+    // because of a missing field.
+    globalThis.fetch = async () =>
+      response([at(1, 5), { theatreId: 2, theatreName: "No distance", location: {} }]);
+
+    const theatres = await getTheatres({ lat: 13.013, lon: -13.013, rangeKm: 10 });
+
+    assert.deepEqual(
+      theatres.map((t) => t.theatreId),
+      [1, 2]
+    );
+  });
+});
+
 describe("resolveSubscriptionKey", () => {
   const isKeyShaped = (k) => /^[0-9a-f]{32}$/.test(k);
 

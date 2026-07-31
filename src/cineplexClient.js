@@ -483,9 +483,63 @@ export async function getTheatres({ lat, lon, rangeKm = 50 } = {}) {
 
   const url = `${THEATRICAL_BASE_URL}/theatres/playingnearby?${params.toString()}`;
   const data = await throttledFetch(url, theatricalHeaders());
-  const theatres = Array.isArray(data) ? data : [];
+  const theatres = filterByRange(Array.isArray(data) ? data : [], rangeKm);
   cache.set(cacheKey, theatres, THEATRE_MOVIE_CACHE_TTL_MS);
   return theatres;
+}
+
+/**
+ * Enforce the search radius ourselves.
+ *
+ * Cineplex accepts `accuracyKm` and then ignores it: the endpoint returns the
+ * 15 nearest theatres no matter what. Verified 2026-07-31 from Moose Jaw, SK,
+ * where `accuracyKm` of 1 and of 200 both returned the same 15 theatres, the
+ * farthest 600 km away. Passing that through unfiltered means a caller asking
+ * for theatres within 25 km is handed one in another province, with a distance
+ * field that quietly contradicts the request.
+ *
+ * `accuracyKm` is still sent, so this stays correct if Cineplex ever honours
+ * it — the filter simply becomes a no-op. Entries whose distance Cineplex
+ * didn't report are kept rather than dropped: unknown is not the same as
+ * out-of-range, and dropping them would hide a theatre for a missing field.
+ */
+function filterByRange(theatres, rangeKm) {
+  const limitMeters = rangeKm * 1000;
+  return theatres.filter((t) => {
+    const meters = t?.location?.distanceToOriginInMeters;
+    return typeof meters !== "number" || meters <= limitMeters;
+  });
+}
+
+/**
+ * Every Cineplex theatre in Canada (147 as of 2026-07-31), with coordinates,
+ * city, province, and postal code.
+ *
+ * Unlike `theatres/playingnearby`, this endpoint takes no origin and returns
+ * the whole directory, grouped into favourite/nearby/other buckets — the
+ * grouping is meaningless without a signed-in user or an origin, so the three
+ * are concatenated back into one list. It's what lets a location like
+ * "Toronto" or "Scotiabank Theatre" resolve without a geocoder.
+ */
+export async function getAllTheatres() {
+  const cacheKey = "theatres:all";
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+
+  const params = new URLSearchParams({ language: "en" });
+  const url = `${THEATRICAL_BASE_URL}/theatres?${params.toString()}`;
+  const data = await throttledFetch(url, theatricalHeaders());
+
+  const theatres = [
+    ...(data?.favouriteTheatres ?? []),
+    ...(data?.nearbyTheatres ?? []),
+    ...(data?.otherTheatres ?? []),
+  ];
+  // The buckets overlap — a nearby theatre can also be a favourite.
+  const deduped = [...new Map(theatres.map((t) => [String(t.theatreId), t])).values()];
+
+  cache.set(cacheKey, deduped, THEATRE_MOVIE_CACHE_TTL_MS);
+  return deduped;
 }
 
 /** Fetch Cineplex's full current movie catalog (cached for the process lifetime). */

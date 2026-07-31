@@ -15,7 +15,8 @@
     "preview": "node scripts/preview-seatmap.mjs",
     "preview:watch": "node scripts/preview-seatmap.mjs --watch",
     "preview:cdn": "node scripts/build-shell.mjs && node scripts/preview-seatmap.mjs --cdn",
-    "build:shell": "node scripts/build-shell.mjs"
+    "build:shell": "node scripts/build-shell.mjs",
+    "build:locations": "node scripts/build-location-data.mjs"
   },
   "engines": {
     "node": ">=18"

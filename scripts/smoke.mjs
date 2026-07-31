@@ -5,10 +5,11 @@
  *   npm run smoke
  *
  * Unlike `npm test` (pure, offline, always safe to run), this makes real
- * requests to apis.cineplex.com. It exercises all four endpoints end to end,
+ * requests to apis.cineplex.com. It exercises all five endpoints end to end,
  * chaining each result into the next the way the MCP tools do:
  *
- *   theatres -> movies -> showtimes -> seat layout + availability -> score
+ *   theatre directory -> location resolution -> theatres -> movies ->
+ *   showtimes -> seat layout + availability -> score
  *
  * Exits non-zero if any step fails, so it can be run from a terminal or a
  * scheduled check and trusted to report honestly. A failure here almost
@@ -17,6 +18,7 @@
  */
 import {
   getTheatres,
+  getAllTheatres,
   getAllMovies,
   findMovieByTitle,
   getShowtimes,
@@ -24,6 +26,7 @@ import {
   normalizeCineplexSeatMap,
 } from "../src/cineplexClient.js";
 import { scoreSeatMap } from "../src/seatScoring.js";
+import { resolveLocation } from "../src/locationResolver.js";
 
 // Downtown Toronto. Any Canadian coordinates work; this just needs to be
 // somewhere with enough theatres that the chain below has something to chew on.
@@ -37,11 +40,27 @@ const fail = (msg) => console.log(`  FAIL ${msg}`);
 async function main() {
   console.log(`Smoke test against live Cineplex endpoints (${new Date().toISOString()})\n`);
 
+  // 0. Theatre directory + location resolution. The directory is its own
+  // endpoint (`/theatres`, no origin), and it's what lets a location string
+  // name a theatre or a city — so a change in its shape breaks lookups that
+  // the coordinate-based chain below would never notice.
+  const directory = await getAllTheatres();
+  if (directory.length === 0) throw new Error("theatres returned an empty directory");
+  const withCoords = directory.filter((t) => t.location?.geoLocation?.latitude != null).length;
+  if (withCoords === 0) {
+    throw new Error("no theatre in the directory has coordinates — location.geoLocation may have moved");
+  }
+  pass(`theatre directory: ${directory.length} theatres, ${withCoords} with coordinates`);
+
+  const resolved = resolveLocation("Toronto", directory);
+  if (!resolved.found) throw new Error(`location resolution failed for "Toronto": ${resolved.message}`);
+  pass(`location: "Toronto" -> ${resolved.lat}, ${resolved.lon} (${resolved.source}, ${resolved.precision})`);
+
   // 1. Theatres
   const theatres = await getTheatres({ lat: LAT, lon: LON, rangeKm: RANGE_KM });
   if (theatres.length === 0) throw new Error("theatres/playingnearby returned no theatres");
   const theatre = theatres[0];
-  pass(`theatres: ${theatres.length} within ${RANGE_KM}km — nearest is ${theatre.theatreName} (${theatre.theatreId})`);
+  pass(`theatres in range: ${theatres.length} within ${RANGE_KM}km — nearest is ${theatre.theatreName} (${theatre.theatreId})`);
 
   // 2. Movies + fuzzy matching
   const movies = await getAllMovies();
@@ -75,7 +94,7 @@ async function main() {
   const score = scoreSeatMap(normalized);
   pass(`scoring: ${score.totalAvailable} available (${score.optimalAvailable} in the preferred zone), best block ${score.bestBlock ? `${score.bestBlock.length} together in row ${score.bestBlock.row}` : "none"}`);
 
-  console.log("\nAll four endpoints healthy.");
+  console.log("\nAll endpoints healthy.");
 }
 
 main().catch((err) => {

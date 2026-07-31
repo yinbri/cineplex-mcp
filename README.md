@@ -14,10 +14,11 @@ failures (429/5xx, dropped sockets) are retried with backoff that honours
 `Retry-After`, and anything still broken surfaces as a clear message instead
 of a crash.
 
-## Status: all four Cineplex data endpoints are confirmed working
+## Status: all five Cineplex data endpoints are confirmed working
 
-All four calls this server depends on hit real, live `apis.cineplex.com`
-endpoints, tested end-to-end against real responses as of 2026-07-19. See
+All five calls this server depends on hit real, live `apis.cineplex.com`
+endpoints, tested end-to-end against real responses — the original four as of
+2026-07-19, the full theatre directory as of 2026-07-31. See
 [`CAPTURE.md`](./CAPTURE.md) for how they were found and what to do if
 Cineplex changes something in the future (e.g. rotates the theatrical API's
 subscription key).
@@ -117,9 +118,15 @@ claude mcp add cineplex -e CINEPLEX_SUBSCRIPTION_KEY=… -- node /absolute/path/
 
 ## Tools exposed
 
-- **`find_theatres`** — `{ lat, lon, rangeKm? }` → nearby theatres (id, name,
-  address, distance), nearest first (Cineplex returns them in distance order;
-  the server preserves it).
+- **`find_theatres`** — `{ location?, lat?, lon?, rangeKm? }` → nearby theatres
+  (id, name, address, distance), nearest first, plus a `resolvedLocation` block
+  saying how the location was understood.
+
+  Send `lat`/`lon` when you can place the location yourself — that is the
+  primary path. Send `location` for the things that need looking up: a postal
+  code (`"M5B 2H1"`, or a bare FSA like `"M5B"`), a Cineplex theatre name
+  (`"Yonge-Dundas"`), or a city that has a Cineplex theatre. See
+  [Location input](#location-input) for how the two divide the work.
 - **`find_movie`** — `{ title }` → best fuzzy match against Cineplex's full
   current movie catalog, including the Cineplex movie ID. Cineplex's `movies`
   endpoint returns the whole catalog in one response (it reports a
@@ -167,6 +174,79 @@ claude mcp add cineplex -e CINEPLEX_SUBSCRIPTION_KEY=… -- node /absolute/path/
 are numeric, and `find_theatres`/`find_optimal_showtimes` hand them back as
 numbers, so chaining one tool's output straight into the next one's input
 just works.
+
+## Location input
+
+Cineplex's theatre search is coordinate-based. `find_theatres` takes either
+coordinates or a `location` string, and the two are meant to split the work
+rather than compete:
+
+**Send `lat`/`lon` for anywhere you can already place** — cities,
+neighbourhoods, landmarks, street addresses. A language model converts those
+accurately and knows when it can't, so a lookup table would only duplicate it.
+This is the expected path and the most precise one.
+
+**Send `location` for what world knowledge gets wrong:**
+
+| Input | Example | Resolved from |
+|---|---|---|
+| postal code / FSA | `"M5B 2H1"`, `"M5B"` | bundled FSA table |
+| Cineplex theatre name | `"Yonge-Dundas"`, `"Courtney Park"` | live theatre directory |
+| city with a theatre | `"Mississauga"`, `"London, ON"` | live theatre directory |
+| coordinates as a string | `"43.65, -79.38"` | parsed, not looked up |
+
+A postal code is also picked up from inside a longer string, so
+`"123 Front St W, Toronto, ON M5J 2M2"` resolves by its postal code. Input is
+case-, punctuation-, and accent-insensitive; a trailing country is ignored
+(`"Halifax, NS, Canada"`); provinces work as a code or a full name.
+
+Anything else returns `found: false` inviting you to pass coordinates. That is
+the design, not a gap.
+
+### Why postal codes specifically
+
+They are the one input neither a model nor an open geocoder handles reliably.
+
+Canada Post's postal file is proprietary, so OSM's coverage is thin: measured
+against Nominatim on 2026-07-31, four of six sampled postal codes returned no
+match, and `V6B 1A1` — downtown Vancouver — resolved to `48.87, -119.73`, about
+400 km away near the Washington border.
+
+Recall fares better but fails unpredictably. Claude's own from-memory
+coordinates for 16 FSAs landed 12 within 10 km — Waterloo 0.1 km, Victoria
+0.3 km — but placed `T9K` in Cold Lake when it is **Fort McMurray**, 264 km
+off, stated exactly as confidently as the correct answers. A wrong coordinate
+doesn't fail loudly; it returns a tidy list of theatres in the wrong city.
+
+The bundled [GeoNames](https://www.geonames.org/) table
+(`src/data/postalCodes.json`, 41 KB, CC BY 4.0) covers all 1652 FSAs. Rebuild
+it with `npm run build:locations`.
+
+### Precision
+
+Every result reports how sharp it is:
+
+- `exact` — coordinates, or a specific theatre.
+- `fsa` — an urban postal area, a few blocks across.
+- `city` — the centroid of that city's Cineplex theatres. Fine for a small
+  city, loose for a big one: `"Toronto"` lands near Don Mills, because the
+  suburban locations outvote the downtown ones, and returns Don Mills as the
+  nearest theatre where coordinates for downtown return Yonge-Dundas. Prefer
+  `lat`/`lon` for large cities.
+- `region` — a rural FSA (a `0` in the second position, Canada Post's own
+  convention). These span hundreds of kilometres; `X0A` covers the eastern
+  Arctic and sits ~1800 km from Iqaluit. Labelled rather than passed off as a
+  point.
+
+### Search radius
+
+`rangeKm` (default 50) is enforced by this server, not by Cineplex.
+`theatres/playingnearby` accepts an `accuracyKm` parameter and ignores it,
+always returning its 15 nearest theatres: from Moose Jaw, SK a 1 km and a
+200 km request come back identical, the farthest theatre 599.7 km away. Results
+are filtered by their reported distance so the radius means what it says. When
+nothing is in range, the response names the nearest theatre and its distance,
+so you know what to widen to.
 
 ### Seat-quality parameters
 
@@ -264,6 +344,9 @@ default, and the skill upgrades that picture to an interactive one.
 
 ## Example prompts
 
+- "Find Cineplex theatres in Toronto." → Claude supplies the coordinates.
+- "What's playing near M5B 2H1?" → resolved from the bundled postal table.
+- "Find theatres within 10km of 123 Front St W, Toronto."
 - "Find theatres near me at lat 43.65, lon -79.38."
 - "Look up the movie 'The Odyssey' on Cineplex."
 - "Find IMAX 70mm showtimes for The Odyssey at theatre 9806 on 2026-07-20
@@ -291,8 +374,13 @@ Runs the whole `test/` directory with Node's built-in test runner:
   handling.
 - `test/cineplexClient.test.js` — cache expiry and bounded eviction, the retry
   policy (which statuses are retried, `Retry-After` handling, the retry loop
-  itself), and automatic subscription-key re-capture — all driven through a
-  stubbed `fetch`, so it stays offline.
+  itself), client-side `rangeKm` enforcement, and automatic subscription-key
+  re-capture — all driven through a stubbed `fetch`, so it stays offline.
+- `test/locationResolver.test.js` — the location cascade against the real
+  bundled FSA table: coordinate parsing, postal codes (including the ones open
+  geocoders and recall both get wrong), theatre-name matching, city lookup via
+  the theatre directory, urban-vs-rural precision labelling, and the guarantee
+  that an unresolvable string is reported rather than guessed at.
 - `test/shellBuild.test.js` — that the committed `dist/` widget shell still
   matches `src/seatMapTemplate.html`, and that a shell change can't ship under
   an already-published `SHELL_VERSION`. See [`RELEASING.md`](./RELEASING.md).
@@ -304,7 +392,7 @@ Runs the whole `test/` directory with Node's built-in test runner:
   when Cineplex changes shape, so the fixtures keep real field names and real
   value vocabularies.
 
-All three suites are pure and offline — no network access required. They run
+All suites are pure and offline — no network access required. They run
 in CI on every push and pull request (`.github/workflows/test.yml`) against
 Node 18, 20, and 22.
 
@@ -314,19 +402,22 @@ Node 18, 20, and 22.
 npm run smoke
 ```
 
-Unlike `npm test`, this makes real requests to Cineplex. It chains all four
-endpoints the way the MCP tools do — theatres → movies → showtimes → seat
-layout + availability → score — and exits non-zero if any step fails:
+Unlike `npm test`, this makes real requests to Cineplex. It chains all five
+endpoints the way the MCP tools do — theatre directory → location resolution →
+theatres → movies → showtimes → seat layout + availability → score — and exits
+non-zero if any step fails:
 
 ```
-  ok   theatres: 15 within 25km — nearest is Cineplex Cinemas Yonge-Dundas and VIP (7130)
-  ok   movies: 258 in catalog
+  ok   theatre directory: 152 theatres, 152 with coordinates
+  ok   location: "Toronto" -> 43.6706, -79.3918 (cineplex-city, city)
+  ok   theatres in range: 15 within 25km — nearest is Cineplex Cinemas Yonge-Dundas and VIP (7130)
+  ok   movies: 250 in catalog
   ok   fuzzy match: "Spider-Man: Brand New Day" -> id 37997 (score 1000)
-  ok   showtimes: 40 at Cineplex Cinemas Yonge-Dundas and VIP on 2026-07-30 — sampling 2026-07-30T19:10:00 (UltraAVX 3D D-BOX Dolby Atmos)
+  ok   showtimes: 95 at Cineplex Cinemas Yonge-Dundas and VIP on 2026-07-31 — sampling 2026-07-31T19:10:00 (UltraAVX 3D D-BOX Dolby Atmos)
   ok   seat map: 15 rows, 387 seats
-  ok   scoring: 48 available (4 in the preferred zone), best block 2 together in row G
+  ok   scoring: 49 available (0 in the preferred zone), best block none
 
-All four endpoints healthy.
+All endpoints healthy.
 ```
 
 A failure here almost always means something changed upstream — see
@@ -341,6 +432,13 @@ outage shouldn't redden the build on unrelated commits.
 src/
   index.js              # MCP server entrypoint; registers tools, thin glue only
   cineplexClient.js     # All HTTP calls to Cineplex's API; caching + throttling
+  locationResolver.js   # Postal code / theatre name / city -> lat/lon, for
+                        # the cases a caller can't resolve itself. Pure and
+                        # offline; no geocoding service. Deliberately narrow —
+                        # see "Location input" in the README.
+  data/
+    postalCodes.json    # Generated: GeoNames FSA centroids (CC BY 4.0).
+                        # Rebuild with npm run build:locations.
   seatScoring.js        # Pure functions: normalized seat map -> score. No
                         # network calls, no Cineplex-specific knowledge.
   seatMapAscii.js       # Default visualization: renders raw seat data as the
@@ -357,8 +455,11 @@ test/
   cineplexClient.test.js  # shell build guards (npm test runs the whole
   shellBuild.test.js      # directory; no network access needed).
 scripts/
-  smoke.mjs             # Live end-to-end check of all four Cineplex
+  smoke.mjs             # Live end-to-end check of all five Cineplex
                         # endpoints (npm run smoke). Not run in CI.
+  build-location-data.mjs # Regenerates src/data/postalCodes.json from GeoNames
+                        # (npm run build:locations). Documents why the tables
+                        # are bundled instead of geocoded at request time.
   build-shell.mjs       # Compiles seatMapTemplate.html into dist/ (npm run
                         # build:shell) so the widget's static CSS/JS can be
                         # served from a CDN instead of re-emitted per request.
@@ -408,6 +509,10 @@ changes.
 MIT — see [`LICENSE`](./LICENSE). This remains an unofficial, personal-use
 tool built against Cineplex's undocumented endpoints; see the disclaimer at
 the top of this file before relying on it for anything beyond that.
+
+`src/data/postalCodes.json` is derived from the
+[GeoNames](https://www.geonames.org/) postal-code dataset, used under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
 ## Project history
 

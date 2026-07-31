@@ -16,6 +16,7 @@ cineplex.com's live bundle, and the theatrical API accepts it (HTTP 200).
 | Function | Endpoint | Auth |
 |---|---|---|
 | `getTheatres` | `GET apis.cineplex.com/prod/cpx/theatrical/api/v1/theatres/playingnearby` | `Ocp-Apim-Subscription-Key` |
+| `getAllTheatres` | `GET apis.cineplex.com/prod/cpx/theatrical/api/v1/theatres` | `Ocp-Apim-Subscription-Key` |
 | `getAllMovies` / `findMovieByTitle` | `GET apis.cineplex.com/prod/cpx/theatrical/api/v1/movies` | `Ocp-Apim-Subscription-Key` |
 | `getShowtimes` | `GET apis.cineplex.com/prod/cpx/theatrical/api/v1/showtimes` | `Ocp-Apim-Subscription-Key` |
 | `getRawSeatMap` | `GET apis.cineplex.com/prod/ticketing/api/v1/theatre/{id}/showtime/{id}/seat-layout` and `.../seat-availability` | none |
@@ -47,6 +48,24 @@ cineplex.com's live bundle, and the theatrical API accepts it (HTTP 200).
 4. Response shapes were read directly off the live JSON (see
    `cineplexClient.js` for the exact fields consumed) — nothing here is
    guessed.
+5. **The full theatre directory** (`/theatres`, no origin parameter) was
+   confirmed 2026-07-31. Unlike `playingnearby` it takes no coordinates and
+   returns every Cineplex theatre in Canada — 152 at capture, each carrying
+   `location.geoLocation.{latitude,longitude}`, city, province, and postal
+   code. The response is grouped into `favouriteTheatres` / `nearbyTheatres` /
+   `otherTheatres`; without a signed-in user the grouping is not meaningful,
+   and the buckets overlap, so the client concatenates and de-duplicates them.
+   This is what lets a plain location string ("Toronto", "Scotiabank Theatre")
+   resolve to coordinates without a geocoding service.
+
+## Behaviour worth knowing: `accuracyKm` is ignored
+
+`theatres/playingnearby` accepts an `accuracyKm` parameter and then disregards
+it — it always returns its 15 nearest theatres. Verified 2026-07-31 from Moose
+Jaw, SK: `accuracyKm=1` and `accuracyKm=200` returned an identical list, the
+farthest theatre 599.7 km away. `getTheatres` therefore filters by
+`location.distanceToOriginInMeters` itself. The parameter is still sent, so
+the filter degrades to a no-op should Cineplex ever start honouring it.
 
 ## If this breaks in the future
 

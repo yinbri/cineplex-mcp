@@ -13,12 +13,14 @@ import { z } from "zod";
 
 import {
   getTheatres,
+  getAllTheatres,
   findMovieByTitle,
   getShowtimes,
   getRawSeatMap,
   normalizeCineplexSeatMap,
   CineplexApiError,
 } from "./cineplexClient.js";
+import { resolveLocation } from "./locationResolver.js";
 import { scoreSeatMap, DEFAULT_SCORE_OPTIONS } from "./seatScoring.js";
 import { buildSeatMapWidget, compactRows } from "./seatMapTemplate.js";
 import { renderSeatMapAscii } from "./seatMapAscii.js";
@@ -56,6 +58,23 @@ function htmlResult(html) {
   return { content: [{ type: "text", text: html }] };
 }
 
+/**
+ * Report back how a location string was understood, so the caller can tell the
+ * user "searching near Toronto, ON" — and, when a bare city name exists in
+ * more than one province, say which one was picked and what the others were.
+ */
+function describeOrigin(origin) {
+  return {
+    label: origin.label,
+    lat: origin.lat,
+    lon: origin.lon,
+    matchedBy: origin.source,
+    precision: origin.precision,
+    ...(origin.note ? { note: origin.note } : {}),
+    ...(origin.alternatives?.length ? { alsoMatched: origin.alternatives } : {}),
+  };
+}
+
 /** Fetch + normalize + score one showtime's seat map. Never throws. */
 async function scoreShowtime({ theatreId, showtimeId }, scoreOptions) {
   try {
@@ -73,18 +92,81 @@ server.registerTool(
   {
     title: "Find Cineplex theatres",
     description:
-      "Find Cineplex theatres near a location (by lat/lon and search radius). Returns id, name, address, and distance for each theatre.",
+      "Find Cineplex theatres near a location, nearest first. Returns id, name, address, and " +
+      "distance for each. Give EITHER `lat`/`lon` or `location`. If you already know where the " +
+      "place is — most cities, neighbourhoods, landmarks, and street addresses — just send " +
+      "lat/lon directly; that is the expected path and needs no lookup. Use `location` for the " +
+      "things you cannot resolve reliably: a Canadian postal code, or a Cineplex theatre by name.",
     inputSchema: {
-      lat: z.number().describe("Latitude of the search origin"),
-      lon: z.number().describe("Longitude of the search origin"),
+      location: z
+        .string()
+        .optional()
+        .describe(
+          'Postal code ("M5B 2H1" or a bare FSA like "M5B"), Cineplex theatre name ' +
+            '("Yonge-Dundas"), a city that has a Cineplex theatre ("Mississauga", "London, ON"), ' +
+            'or "lat, lon". Canada only. Prefer lat/lon for anywhere you can place yourself.'
+        ),
+      lat: z.number().optional().describe("Latitude of the search origin (alternative to `location`)"),
+      lon: z.number().optional().describe("Longitude of the search origin (alternative to `location`)"),
       rangeKm: z.number().optional().describe("Search radius in kilometers (default 50)"),
     },
   },
-  async ({ lat, lon, rangeKm }) => {
+  async ({ location, lat, lon, rangeKm }) => {
     try {
-      const theatres = await getTheatres({ lat, lon, rangeKm });
-      return jsonResult(
-        theatres.map((t) => {
+      let origin = null;
+
+      if (location !== undefined) {
+        // The theatre directory powers theatre-name and city matching. It's a
+        // cached call, and a failure there shouldn't sink a lookup the bundled
+        // postal table could have answered on its own.
+        let directory = [];
+        try {
+          directory = await getAllTheatres();
+        } catch {
+          // Fall through with an empty directory — postal codes still resolve.
+        }
+        const resolved = resolveLocation(location, directory);
+        if (!resolved.found) return jsonResult(resolved);
+        origin = resolved;
+      } else if (lat !== undefined && lon !== undefined) {
+        origin = { lat, lon, label: `${lat}, ${lon}`, source: "coordinates", precision: "exact" };
+      } else {
+        return jsonResult({
+          found: false,
+          message: "Provide both `lat` and `lon`, or a `location` (postal code, theatre name, or city).",
+        });
+      }
+
+      const theatres = await getTheatres({ lat: origin.lat, lon: origin.lon, rangeKm });
+
+      if (theatres.length === 0) {
+        // Nothing in range. Cineplex always hands back the 15 nearest
+        // regardless of radius, so a second wide call costs one request and
+        // turns "none found" into "the nearest one is N km away" — the number
+        // the caller actually needs in order to pick a new radius.
+        let hint = "Try a larger rangeKm, or a nearby larger city.";
+        try {
+          const wider = await getTheatres({ lat: origin.lat, lon: origin.lon, rangeKm: 10000 });
+          const nearest = wider[0];
+          const meters = nearest?.location?.distanceToOriginInMeters;
+          if (typeof meters === "number") {
+            hint =
+              `The nearest is ${nearest.theatreName}, ${Math.round(meters / 1000)} km away — ` +
+              `pass rangeKm above that to include it.`;
+          }
+        } catch {
+          // Keep the generic hint if the wider lookup fails.
+        }
+        return jsonResult({
+          resolvedLocation: describeOrigin(origin),
+          theatres: [],
+          message: `No Cineplex theatres within ${rangeKm ?? 50} km of ${origin.label}. ${hint}`,
+        });
+      }
+
+      return jsonResult({
+        resolvedLocation: describeOrigin(origin),
+        theatres: theatres.map((t) => {
           const loc = t.location ?? {};
           const cityProvince = [loc.city, loc.provinceCode].filter(Boolean).join(" ");
           const address = [loc.address, [cityProvince, loc.postalCode].filter(Boolean).join(" ")]
@@ -98,8 +180,8 @@ server.registerTool(
               ? Math.round(loc.distanceToOriginInMeters / 100) / 10
               : undefined,
           };
-        })
-      );
+        }),
+      });
     } catch (err) {
       return errorResult(err);
     }
